@@ -3,41 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>القصاصات الصحفية - جمعية الشيخ أبي إسحاق</title>
+    <title>القصاصات الصحفية - جمعية الشيخ أبي إسحاق لخدمة التراث</title>
+    <!-- Bootstrap RTL CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
-        body { background-color: #f8f9fa; font-family: system-ui, -apple-system, sans-serif; }
-        .header-box { background: #1b4332; color: white; padding: 2rem 0; margin-bottom: 2rem; }
-        .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
-        .card:hover { transform: translateY(-3px); }
-        .badge-source { background-color: #2d6a4f; }
+        body { 
+            background-color: #f4f6f8; 
+            font-family: 'Tajawal', sans-serif; 
+            color: #2c3e50;
+        }
+
+        /* Header Design */
+        .hero-header {
+            background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
+            color: white;
+            padding: 3rem 1rem 2.5rem 1rem;
+            border-bottom: 5px solid #d4af37;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .association-logo {
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            background: white;
+            border-radius: 50%;
+            padding: 5px;
+            border: 4px solid #d4af37;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            margin-bottom: 1rem;
+        }
+
+        /* Filter Navigation Buttons */
+        .nav-pills .nav-link {
+            color: #2d6a4f;
+            font-weight: 600;
+            border-radius: 20px;
+            padding: 8px 25px;
+            background-color: #ffffff;
+            border: 1px solid #2d6a4f;
+            margin: 0 5px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-pills .nav-link.active, .nav-pills .nav-link:hover {
+            background-color: #2d6a4f;
+            color: white;
+            box-shadow: 0 3px 8px rgba(45, 106, 79, 0.3);
+        }
+
+        /* News Cards Design */
+        .news-card {
+            border: none;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+        }
+
+        .news-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .badge-source {
+            background-color: #d4af37;
+            color: #1b4332;
+            font-weight: 700;
+            font-size: 0.8rem;
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+
+        .btn-read-more {
+            border-color: #2d6a4f;
+            color: #2d6a4f;
+            font-weight: 600;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-read-more:hover {
+            background-color: #2d6a4f;
+            color: white;
+        }
+
+        /* Empty State Warning Box */
+        .empty-state {
+            background: white;
+            border-radius: 15px;
+            padding: 3rem 1.5rem;
+            border-top: 4px solid #d4af37;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
     </style>
 </head>
 <body>
 
-<div class="header-box text-center">
-    <h2>جمعية الشيخ أبي إسحاق لخدمة التراث</h2>
-    <p class="mb-0">الرصد الصحفي والقصاصات الإخبارية اليومية</p>
-</div>
-
-<div class="container">
-    <div id="loading" class="text-center my-5">
-        <div class="spinner-border text-success" role="status"></div>
-        <p class="mt-2">جاري تحميل أحدث القصاصات...</p>
+<!-- Header Section -->
+<header class="hero-header text-center">
+    <div class="container">
+        <img src="logo.png" alt="شعار جمعية الشيخ أبي إسحاق" class="association-logo">
+        <h1 class="fw-bold fs-2 mb-2">جمعية الشيخ أبي إسحاق لخدمة التراث</h1>
+        <p class="lead mb-0 text-light opacity-90 fs-6">
+            <i class="fa-solid fa-newspaper me-1"></i> منظومة الرصد الصحفي والقصاصات الإخبارية اليومية
+        </p>
     </div>
-    
+</header>
+
+<main class="container my-4">
+    <!-- Filter Navigation Tabs -->
+    <div class="d-flex justify-content-center mb-4">
+        <ul class="nav nav-pills" id="newsTabs">
+            <li class="nav-item">
+                <button class="nav-link active" id="today-tab" onclick="switchTab('today')">
+                    <i class="fa-solid fa-calendar-day me-1"></i> قصاصات اليوم
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="archive-tab" onclick="switchTab('archive')">
+                    <i class="fa-solid fa-box-archive me-1"></i> الأرشيف الكامل
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="text-center my-5 py-5">
+        <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status"></div>
+        <p class="mt-3 fw-bold text-muted">جاري تحميل أحدث القصاصات الإخبارية...</p>
+    </div>
+
+    <!-- News Container Grid -->
     <div id="news-container" class="row g-4"></div>
-</div>
+
+    <!-- Empty State Box (Shown when no articles today) -->
+    <div id="empty-state" class="empty-state text-center my-4 d-none">
+        <div class="mb-3 text-warning">
+            <i class="fa-solid fa-folder-open fa-3x"></i>
+        </div>
+        <h4 class="fw-bold mb-2">لا توجد قصاصات جديدة لليوم</h4>
+        <p class="text-muted mb-4">لم يتم رصد مقالات جديدة نُشرت خلال الـ 24 ساعة الماضية حول موضوع البحث.</p>
+        <button onclick="switchTab('archive')" class="btn btn-success px-4 py-2 rounded-pill shadow-sm">
+            <i class="fa-solid fa-box-archive me-1"></i> الانتقال إلى الأرشيف الكامل
+        </button>
+    </div>
+</main>
+
+<footer class="text-center py-4 text-muted small border-top mt-5 bg-white">
+    <div class="container">
+        جميع الحقوق محفوظة © جمعية الشيخ أبي إسحاق لخدمة التراث
+    </div>
+</footer>
 
 <script>
-    // --- ضع بيانات Supabase العامة هنا ---
-    const SUPABASE_URL = 'https://sixvgxtoizjxprkpkjki.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p';
+    // --- بيانات الاتصال الخاصة بـ Supabase ---
+    const SUPABASE_URL = 'https://sixvgxtoizjxprkpkjki.supabase.co'; // ضع Project URL هنا
+    const SUPABASE_ANON_KEY = 'sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p';  // ضع مفتاح anon/default هنا
 
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    let allNews = [];
+    let currentMode = 'today';
 
-    async function fetchClippings() {
+    async function loadNews() {
         const { data, error } = await db
             .from('clippings')
             .select('*')
@@ -46,22 +183,56 @@
         document.getElementById('loading').style.display = 'none';
 
         if (error) {
-            console.error(error);
+            console.error("خطأ في جلب البيانات:", error);
             return;
         }
 
+        allNews = data || [];
+        renderNews();
+    }
+
+    function renderNews() {
         const container = document.getElementById('news-container');
-        data.forEach(item => {
+        const emptyState = document.getElementById('empty-state');
+        container.innerHTML = '';
+        emptyState.classList.add('d-none');
+
+        const now = new Date();
+        const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+
+        let filteredNews = [];
+
+        if (currentMode === 'today') {
+            filteredNews = allNews.filter(item => {
+                const itemDate = new Date(item.created_at || item.published_date);
+                return itemDate >= twentyFourHoursAgo;
+            });
+        } else {
+            filteredNews = allNews;
+        }
+
+        if (filteredNews.length === 0 && currentMode === 'today') {
+            emptyState.classList.remove('d-none');
+            return;
+        }
+
+        filteredNews.forEach(item => {
             const card = `
                 <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 p-3">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="badge badge-source">${item.source || 'جريدة'}</span>
-                            <small class="text-muted">${item.published_date || ''}</small>
+                    <div class="news-card p-3 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge badge-source">
+                                <i class="fa-solid fa-newspaper me-1"></i> ${item.source || 'جريدة'}
+                            </span>
+                            <small class="text-muted fs-7">
+                                <i class="fa-regular fa-clock me-1"></i> ${item.published_date ? item.published_date.substring(0, 16) : ''}
+                            </small>
                         </div>
-                        <h5 class="card-title fs-6 fw-bold mb-3">${item.title}</h5>
-                        <p class="card-text text-secondary small">${item.summary || ''}</p>
-                        <a href="${item.link}" target="_blank" class="btn btn-sm btn-outline-success mt-auto">قراءة الخبر الكامل ↗</a>
+                        <h5 class="card-title fs-6 fw-bold mb-3 text-dark leading-snug">${item.title}</h5>
+                        <p class="card-text text-secondary small mb-4 flex-grow-1">${item.summary || 'لا يوجد ملخص متاح.'}</p>
+                        <a href="${item.link}" target="_blank" class="btn btn-sm btn-read-more w-100 text-center mt-auto">
+                            قراءة الخبر من المصدر <i class="fa-solid fa-arrow-left ms-1"></i>
+                        </a>
                     </div>
                 </div>
             `;
@@ -69,7 +240,15 @@
         });
     }
 
-    fetchClippings();
+    function switchTab(mode) {
+        currentMode = mode;
+        document.getElementById('today-tab').classList.toggle('active', mode === 'today');
+        document.getElementById('archive-tab').classList.toggle('active', mode === 'archive');
+        renderNews();
+    }
+
+    // بدء التحميل فور فتح الصفحة
+    loadNews();
 </script>
 </body>
 </html>
