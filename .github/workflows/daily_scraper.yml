@@ -3,7 +3,7 @@ name: Ghardaia Daily Scraper
 on:
   schedule:
     # تشغيل السكريبت آلياً كل يوم في منتصف الليل (00:00 UTC)
-    - cron: '0 0 * * *'
+    - cron: '0 4 * * *'
   workflow_dispatch: # تتيح لك زر تشغيل يدوي تجريبي في أي وقت
 
 jobs:
