@@ -2,19 +2,19 @@ name: Ghardaia Daily Scraper
 
 on:
   schedule:
-    # تشغيل السكريبت آلياً كل يوم في منتصف الليل (00:00 UTC)
+    # 04:00 UTC = 05:00 صباحاً بتوقيت الجزائر
     - cron: '0 4 * * *'
-  workflow_dispatch: # تتيح لك زر تشغيل يدوي تجريبي في أي وقت
+  workflow_dispatch:
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
