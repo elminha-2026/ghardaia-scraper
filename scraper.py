@@ -2,10 +2,10 @@ import feedparser
 from supabase import create_client, Client
 
 # --- استبدل هذه القيم ببيانات مشروعك من Supabase ---
-SUPABASE_URL = "ضع_Project_URL_هنا"
-SUPABASE_SERVICE_KEY = "ضع_service_role_key_هنا"
+SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"
+SUPABASE_SERVICE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"
 
-supabase: Client = create_client(SUPABASE_URL, sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 # رابط تغذية الأخبار المباشر عن غرداية
 RSS_URL = "https://news.google.com/rss/search?q=%D2%BA%D8%B1%D8%AF%D8%A7%D9%8A%D8%A9+%D8%A7%D9%84%D8%AC%D8%B2%D8%A7%D8%A6%D8%B1&hl=ar&gl=DZ&ceid=DZ:ar"
