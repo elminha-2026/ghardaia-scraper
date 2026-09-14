@@ -168,7 +168,6 @@
 </head>
 <body>
 
-    <!-- الهيدر مع اللوغو -->
     <header class="hero-header text-center">
         <div class="container">
             <div class="mb-3">
@@ -182,7 +181,6 @@
 
     <div class="container my-4">
         
-        <!-- التبويبات -->
         <ul class="nav nav-pills custom-nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active fs-5" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
@@ -198,7 +196,6 @@
 
         <div class="tab-content" id="mainTabsContent">
             
-            <!-- 1. قسم قصاصات اليوم الصادرة -->
             <div class="tab-pane fade show active" id="today-content" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> القصاصات الصادرة اليوم حصراً</h4>
@@ -207,7 +204,6 @@
                 <div id="today-grid" class="row g-4"></div>
             </div>
 
-            <!-- 2. قسم الأرشيف الكامل والفرز -->
             <div class="tab-pane fade" id="archive-content" role="tabpanel">
                 
                 <div class="filter-card mb-4">
@@ -283,7 +279,7 @@
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
 
-        // 🟢 تم ربطه بحقل published_date الخاص بجدولك
+        // 🟢 تحديد اسم العمود المعتمد في الجدول بدقة
         const DATE_FIELD = "published_date"; 
 
         let supabaseClient;
@@ -299,13 +295,13 @@
             loadTodayClippings();
         });
 
-        // 1. جلب القصاصات التي صُدرت بتاريخ اليوم حصراً
+        // 1. جلب قصاصات اليوم
         async function loadTodayClippings() {
             const todayContainer = document.getElementById("today-grid");
             todayContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
 
             if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
-                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY أولاً.</div>`;
+                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى إدخال روابط SUPABASE_URL و SUPABASE_KEY الصحيحة.</div>`;
                 return;
             }
 
@@ -333,7 +329,7 @@
                         <div class="p-5 bg-white rounded-4 shadow-sm">
                             <i class="fa-regular fa-calendar-xmark fa-4x text-warning mb-3"></i>
                             <h5 class="fw-bold text-dark">لا توجد قصاصات جديدة صُدرت بتاريخ اليوم (${todayStr})</h5>
-                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض جميع القصاصات السابقة والفرز حسب التاريخ.</p>
+                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض القصاصات السابقة.</p>
                         </div>
                     </div>`;
                 document.getElementById("today-count").innerText = "0 قصاصة";
@@ -344,13 +340,13 @@
             renderGrid(data, "today-grid");
         }
 
-        // 2. جلب كافة القصاصات مرتبة بحسب تاريخ الصدور
+        // 2. جلب القصاصات الكاملة
         async function loadArchiveClippings() {
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
 
             if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
-                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY أولاً.</div>`;
+                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى إدخال روابط SUPABASE_URL و SUPABASE_KEY الصحيحة.</div>`;
                 return;
             }
 
@@ -387,7 +383,7 @@
             });
         }
 
-        // 3. تصفية وفرز البيانات بناءً على published_date والمعايير الأخرى
+        // 3. التصفية والفرز
         function applyArchiveFilters() {
             let filtered = [...allArchiveData];
 
@@ -410,7 +406,6 @@
             if (importanceValue) filtered = filtered.filter(item => item.importance === importanceValue);
             if (sourceValue) filtered = filtered.filter(item => item.source === sourceValue);
 
-            // تصفية بالنطاق الزمني لتاريخ الصدور
             if (dateFromValue) {
                 filtered = filtered.filter(item => {
                     if (!item[DATE_FIELD]) return false;
@@ -427,7 +422,6 @@
                 });
             }
 
-            // الفرز
             if (sortValue === "newest_published") {
                 filtered.sort((a, b) => new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0));
             } else if (sortValue === "oldest_published") {
@@ -455,7 +449,7 @@
             applyArchiveFilters();
         }
 
-        // 4. عرض القصاصات
+        // 4. بناء البطاقات
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
@@ -464,7 +458,7 @@
                     <div class="col-12 text-center py-5">
                         <div class="p-5 bg-white rounded-4 shadow-sm text-muted">
                             <i class="fa-solid fa-filter-circle-xmark fa-3x mb-3"></i>
-                            <h5 class="fw-bold">لم نجد أية نتائج تطابق معايير التاريخ أو الفرز المحددة.</h5>
+                            <h5 class="fw-bold">لم نجد أية نتائج تطابق المعايير المحددة.</h5>
                         </div>
                     </div>`;
                 return;
