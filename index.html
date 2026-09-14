@@ -168,7 +168,7 @@
 </head>
 <body>
 
-    <!-- الهيدر مع اللوغو -->
+    <!-- الهيدر مع الشعار -->
     <header class="hero-header text-center">
         <div class="container">
             <div class="mb-3">
@@ -186,7 +186,7 @@
         <ul class="nav nav-pills custom-nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active fs-5" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
-                    <i class="fa-solid fa-calendar-day me-2 text-warning"></i> قصاصات الصادرة اليوم
+                    <i class="fa-solid fa-calendar-day me-2 text-warning"></i> القصاصات الصادرة اليوم
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -198,23 +198,24 @@
 
         <div class="tab-content" id="mainTabsContent">
             
-            <!-- 1. قسم قصاصات اليوم -->
+            <!-- 1. قسم قصاصات اليوم الصادرة -->
             <div class="tab-pane fade show active" id="today-content" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> الصحف الصادرة اليوم حصراً</h4>
+                    <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> القصاصات الصادرة اليوم حصراً</h4>
                     <span id="today-count" class="counter-badge">0 قصاصة</span>
                 </div>
                 <div id="today-grid" class="row g-4"></div>
             </div>
 
-            <!-- 2. قسم الأرشيف الكامل -->
+            <!-- 2. قسم الأرشيف الكامل والتصفية بالصدور -->
             <div class="tab-pane fade" id="archive-content" role="tabpanel">
                 
                 <div class="filter-card mb-4">
-                    <div class="row g-3">
-                        <div class="col-md-3">
+                    <!-- السطر الأول من الفرز -->
+                    <div class="row g-3 mb-2">
+                        <div class="col-md-4">
                             <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-magnifying-glass me-1"></i> بحث بالنص</label>
-                            <input type="text" id="filter-search" class="form-control" placeholder="اكتب للبحث..." oninput="applyArchiveFilters()">
+                            <input type="text" id="filter-search" class="form-control" placeholder="بحث بالفي العنوان أو الملخص..." oninput="applyArchiveFilters()">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-shapes me-1"></i> الموضوع</label>
@@ -230,21 +231,38 @@
                                 <option value="عادي">عادي</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-newspaper me-1"></i> المصدر</label>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-newspaper me-1"></i> المصدر / الصحيفة</label>
                             <select id="filter-source" class="form-select" onchange="applyArchiveFilters()">
                                 <option value="">كافة المصادر</option>
                             </select>
                         </div>
+                    </div>
+
+                    <!-- السطر الثاني: الفرز حسب تاريخ الصدور والترتيب -->
+                    <div class="row g-3 border-top pt-2 mt-2">
                         <div class="col-md-3">
-                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> ترتيب حسب تاريخ الصدور</label>
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> تاريخ الصدور (من)</label>
+                            <input type="date" id="filter-date-from" class="form-control" onchange="applyArchiveFilters()">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-plus me-1"></i> تاريخ الصدور (إلى)</label>
+                            <input type="date" id="filter-date-to" class="form-control" onchange="applyArchiveFilters()">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
                             <select id="filter-sort" class="form-select" onchange="applyArchiveFilters()">
-                                <option value="newest">أحدث صدوراً (الجديد أولاً)</option>
-                                <option value="oldest">أقدم صدوراً (القديم أولاً)</option>
+                                <option value="newest_published">حسب تاريخ الصدور (الأحدث أولاً)</option>
+                                <option value="oldest_published">حسب تاريخ الصدور (الأقدَم أولاً)</option>
                                 <option value="importance">حسب الأهمية</option>
-                                <option value="source">أبجدياً حسب الجريدة</option>
+                                <option value="source">أبجدياً حسب المصدر</option>
                                 <option value="title">أبجدياً حسب العنوان</option>
                             </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary w-100" onclick="resetArchiveFilters()">
+                                <i class="fa-solid fa-rotate me-1"></i> إعادة ضبط
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -267,7 +285,7 @@
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
 
-        // 🟢 متغير يحدد اسم عمود تاريخ الصدور في جدول البيانات (غيره هنا إذا كان اسمه مختلفاً لديك)
+        // 🟢 اسم عمود تاريخ الصدور في جدول Supabase (تأكد من مطابقته لجدولك، مثلاً: published_at أو issue_date)
         const DATE_FIELD = "published_at"; 
 
         let supabaseClient;
@@ -283,7 +301,7 @@
             loadTodayClippings();
         });
 
-        // 1. جلب القصاصات التي تاريخ صدورها الفعلي هو اليوم
+        // 1. جلب القصاصات التي صُدرت بتاريخ اليوم حصراً
         async function loadTodayClippings() {
             const todayContainer = document.getElementById("today-grid");
             todayContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
@@ -299,7 +317,6 @@
             const day = String(now.getDate()).padStart(2, '0');
             const todayStr = `${year}-${month}-${day}`;
 
-            // الاعتماد على DATE_FIELD (تاريخ الصدور) بدلاً من created_at
             const { data, error } = await supabaseClient
                 .from('clippings')
                 .select('*')
@@ -318,7 +335,7 @@
                         <div class="p-5 bg-white rounded-4 shadow-sm">
                             <i class="fa-regular fa-calendar-xmark fa-4x text-warning mb-3"></i>
                             <h5 class="fw-bold text-dark">لا توجد قصاصات جديدة صُدرت بتاريخ اليوم (${todayStr})</h5>
-                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض جميع القصاصات السابقة.</p>
+                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض القصاصات السابقة والفرز حسب التاريخ.</p>
                         </div>
                     </div>`;
                 document.getElementById("today-count").innerText = "0 قصاصة";
@@ -329,7 +346,7 @@
             renderGrid(data, "today-grid");
         }
 
-        // 2. جلب الأرشيف ترتيبه حسب تاريخ الصدور
+        // 2. جلب كافة القصاصات مرتبة بحسب تاريخ الصدور
         async function loadArchiveClippings() {
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
@@ -339,14 +356,13 @@
                 return;
             }
 
-            // ترتيب القصاصات بحسب تاريخ الصدور (DATE_FIELD)
             const { data, error } = await supabaseClient
                 .from('clippings')
                 .select('*')
                 .order(DATE_FIELD, { ascending: false });
 
             if (error) {
-                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-5">خطأ في الاتصال بقاعدة البيانات: ${error.message}</div>`;
+                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-5">خطأ في جلب البيانات: ${error.message}</div>`;
                 return;
             }
 
@@ -373,7 +389,7 @@
             });
         }
 
-        // 3. محرك الفرز بناءً على تاريخ الصدور
+        // 3. تصفية وفرز البيانات بناءً على تاريخ الصدور والمعايير الأخرى
         function applyArchiveFilters() {
             let filtered = [...allArchiveData];
 
@@ -381,8 +397,11 @@
             const categoryValue = document.getElementById("filter-category").value;
             const importanceValue = document.getElementById("filter-importance").value;
             const sourceValue = document.getElementById("filter-source").value;
+            const dateFromValue = document.getElementById("filter-date-from").value;
+            const dateToValue = document.getElementById("filter-date-to").value;
             const sortValue = document.getElementById("filter-sort").value;
 
+            // فلترة بالنص
             if (searchValue) {
                 filtered = filtered.filter(item => 
                     (item.title && item.title.toLowerCase().includes(searchValue)) ||
@@ -390,14 +409,30 @@
                 );
             }
 
+            // فلترة بالتصنيف والأهمية والمصدر
             if (categoryValue) filtered = filtered.filter(item => item.category === categoryValue);
             if (importanceValue) filtered = filtered.filter(item => item.importance === importanceValue);
             if (sourceValue) filtered = filtered.filter(item => item.source === sourceValue);
 
-            // الفرز على أساس تاريخ الصدور Act-Date
-            if (sortValue === "newest") {
+            // فلترة حسب تاريخ الصدور (من - إلى)
+            if (dateFromValue) {
+                filtered = filtered.filter(item => {
+                    const pubDate = new Date(item[DATE_FIELD]).toISOString().split('T')[0];
+                    return pubDate >= dateFromValue;
+                });
+            }
+
+            if (dateToValue) {
+                filtered = filtered.filter(item => {
+                    const pubDate = new Date(item[DATE_FIELD]).toISOString().split('T')[0];
+                    return pubDate <= dateToValue;
+                });
+            }
+
+            // الترتيب بحسب تاريخ الصدور أو الخيارات الأخرى
+            if (sortValue === "newest_published") {
                 filtered.sort((a, b) => new Date(b[DATE_FIELD]) - new Date(a[DATE_FIELD]));
-            } else if (sortValue === "oldest") {
+            } else if (sortValue === "oldest_published") {
                 filtered.sort((a, b) => new Date(a[DATE_FIELD]) - new Date(b[DATE_FIELD]));
             } else if (sortValue === "importance") {
                 filtered.sort((a, b) => (b.importance === "عالي" ? 1 : -1));
@@ -411,7 +446,19 @@
             renderGrid(filtered, "archive-grid");
         }
 
-        // 4. عرض تاريخ الصدور داخل البطاقة
+        // إعادة ضبط الفلترة
+        function resetArchiveFilters() {
+            document.getElementById("filter-search").value = "";
+            document.getElementById("filter-category").value = "";
+            document.getElementById("filter-importance").value = "";
+            document.getElementById("filter-source").value = "";
+            document.getElementById("filter-date-from").value = "";
+            document.getElementById("filter-date-to").value = "";
+            document.getElementById("filter-sort").value = "newest_published";
+            applyArchiveFilters();
+        }
+
+        // 4. عرض البطاقات مع إبراز تاريخ الصدور
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
@@ -420,14 +467,13 @@
                     <div class="col-12 text-center py-5">
                         <div class="p-5 bg-white rounded-4 shadow-sm text-muted">
                             <i class="fa-solid fa-filter-circle-xmark fa-3x mb-3"></i>
-                            <h5 class="fw-bold">لم نجد أية نتائج تطابق معايير الفرز المحددة.</h5>
+                            <h5 class="fw-bold">لم نجد أية نتائج تطابق معايير التاريخ أو الفرز المحددة.</h5>
                         </div>
                     </div>`;
                 return;
             }
 
             container.innerHTML = items.map(item => {
-                // عرض تاريخ الصدور بحسب الحقل المحدد
                 const issueDate = item[DATE_FIELD] ? new Date(item[DATE_FIELD]).toLocaleDateString('ar-DZ') : 'غير محدد';
 
                 return `
