@@ -153,14 +153,14 @@
                 <img src="logo.png" alt="شعار جمعية الشيخ أبي إسحاق" class="association-logo" onerror="this.style.display='none'">
             </div>
             <span class="gold-badge mb-3"><i class="fa-solid fa-archway me-1"></i> وحدة الرصد والإعلام الرقمي</span>
-            <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية (سنة 2026)</h1>
+            <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية (سنة 2026 فقط)</h1>
             <p class="lead opacity-75 mb-0 fs-6">جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
         </div>
     </header>
 
     <div class="container my-4">
         
-        <!-- بطاقة الفرز والتصفية المتقدمة لقصاصات 2026 -->
+        <!-- بطاقة الفرز والتصفية خاص بـ 2026 -->
         <div class="filter-card mb-4">
             <div class="row g-3 mb-2">
                 <div class="col-md-4">
@@ -218,10 +218,9 @@
 
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-newspaper text-success me-2"></i> قصاصات سنة 2026</h4>
-            <span id="clippings-count" class="counter-badge">جاري التحميل...</span>
+            <span id="clippings-count" class="counter-badge">0 قصاصة</span>
         </div>
 
-        <!-- شبكة عرض البطاقات -->
         <div id="clippings-grid" class="row g-4"></div>
 
     </div>
@@ -244,13 +243,13 @@
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            loadAll2026Clippings();
+            loadOnly2026Clippings();
         });
 
-        // 🎯 دالة الجلب المتقدمة التي تتجاوز حد الـ 100 عنصر وتجلب كافة الـ 569+ قصاصات
-        async function loadAll2026Clippings() {
+        // 🎯 دالة الاستعلام التي تجلب وتصفّي قصاصات سنة 2026 فقط من قاعدة البيانات مباشرة
+        async function loadOnly2026Clippings() {
             const container = document.getElementById("clippings-grid");
-            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div><p class="mt-2 text-muted">جاري تحميل كافة قصاصات سنة 2026...</p></div>';
+            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div><p class="mt-2 text-muted">جاري تحميل قصاصات سنة 2026 فقط...</p></div>';
 
             if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
                 container.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY أولاً.</div>`;
@@ -259,10 +258,10 @@
 
             let all2026Rows = [];
             let page = 0;
-            const pageSize = 1000; // جلب آلاف العناصر بدلاً من التوقف عند 100
+            const pageSize = 1000;
             let hasMore = true;
 
-            // حلقة تكرارية للتغلب على حد 100 عنصر وجلب كافة قصاصات 2026
+            // جلب البيانات مع تطبيق تصفية السنة 2026 في السيرفر مباشر لسرعة الأداء
             while (hasMore) {
                 const { data, error } = await supabaseClient
                     .from('clippings')
@@ -295,7 +294,6 @@
             applyFilters();
         }
 
-        // تعبئة الخيارات في قوائم الفرز تلقائياً بناءً على البيانات المجلوبة
         function populateDropdownFilters(data) {
             const sourceSelect = document.getElementById("filter-source");
             const categorySelect = document.getElementById("filter-category");
@@ -314,7 +312,7 @@
             });
         }
 
-        // تطبيق الفلاتر والبحث والترتيب على البيانات كاملة
+        // التصفية والفرز لـ 2026
         function applyFilters() {
             let filtered = [...data2026Only];
 
@@ -365,7 +363,7 @@
                 filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ar'));
             }
 
-            document.getElementById("clippings-count").innerText = `${filtered.length} قصاصة (من أصل ${data2026Only.length})`;
+            document.getElementById("clippings-count").innerText = `${filtered.length} قصاصة (سنة 2026)`;
             renderGrid(filtered, "clippings-grid");
         }
 
@@ -380,7 +378,7 @@
             applyFilters();
         }
 
-        // عرض بطاقات القصاصات في الشبكة
+        // عرض القصاصات
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
@@ -389,7 +387,7 @@
                     <div class="col-12 text-center py-5">
                         <div class="p-5 bg-white rounded-4 shadow-sm text-muted">
                             <i class="fa-regular fa-calendar-xmark fa-3x mb-3 text-warning"></i>
-                            <h5 class="fw-bold">لم نجد أية قصاصات تطابق معايير البحث الحالية.</h5>
+                            <h5 class="fw-bold">لم نجد أية قصاصات صادرة خلال عام 2026 تطابق بحثك.</h5>
                         </div>
                     </div>`;
                 return;
@@ -412,10 +410,10 @@
                         <div>
                             <hr class="my-3 opacity-10">
                             <div class="d-flex justify-content-between align-items-center small text-secondary mb-3">
-                                <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source || 'غير محدد'}</span>
+                                <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source}</span>
                                 <span><i class="fa-regular fa-calendar me-1"></i> الصدور: ${issueDate}</span>
                             </div>
-                            <a href="${item.link || '#'}" target="_blank" class="btn btn-read-more w-100 text-decoration-none text-center">
+                            <a href="${item.link}" target="_blank" class="btn btn-read-more w-100 text-decoration-none text-center">
                                 قراءة الخبر من المصدر <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
                             </a>
                         </div>
