@@ -153,14 +153,14 @@
                 <img src="logo.png" alt="شعار جمعية الشيخ أبي إسحاق" class="association-logo" onerror="this.style.display='none'">
             </div>
             <span class="gold-badge mb-3"><i class="fa-solid fa-archway me-1"></i> وحدة الرصد والإعلام الرقمي</span>
-            <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية (2026)</h1>
+            <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية (سنة 2026)</h1>
             <p class="lead opacity-75 mb-0 fs-6">جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
         </div>
     </header>
 
     <div class="container my-4">
         
-        <!-- أدوات الفلترة والبحث -->
+        <!-- بطاقة الفرز والتصفية المتقدمة لقصاصات 2026 -->
         <div class="filter-card mb-4">
             <div class="row g-3 mb-2">
                 <div class="col-md-4">
@@ -191,18 +191,18 @@
 
             <div class="row g-3 border-top pt-2 mt-2">
                 <div class="col-md-3">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> من تاريخ</label>
-                    <input type="date" id="filter-date-from" class="form-control" onchange="applyFilters()">
+                    <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> تاريخ الصدور في 2026 (من)</label>
+                    <input type="date" id="filter-date-from" class="form-control" min="2026-01-01" max="2026-12-31" onchange="applyFilters()">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-plus me-1"></i> إلى تاريخ</label>
-                    <input type="date" id="filter-date-to" class="form-control" onchange="applyFilters()">
+                    <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-plus me-1"></i> تاريخ الصدور في 2026 (إلى)</label>
+                    <input type="date" id="filter-date-to" class="form-control" min="2026-01-01" max="2026-12-31" onchange="applyFilters()">
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> الترتيب</label>
+                    <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
                     <select id="filter-sort" class="form-select" onchange="applyFilters()">
-                        <option value="newest_published">الأحدث في 2026 أولاً</option>
-                        <option value="oldest_published">الأقدم في 2026 أولاً</option>
+                        <option value="newest_published">حسب التاريخ (الأحدث في 2026 أولاً)</option>
+                        <option value="oldest_published">حسب التاريخ (الأقدم في 2026 أولاً)</option>
                         <option value="importance">حسب الأهمية</option>
                         <option value="source">أبجدياً حسب المصدر</option>
                         <option value="title">أبجدياً حسب العنوان</option>
@@ -218,91 +218,84 @@
 
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-newspaper text-success me-2"></i> قصاصات سنة 2026</h4>
-            <span id="clippings-count" class="counter-badge">0 قصاصة</span>
+            <span id="clippings-count" class="counter-badge">جاري التحميل...</span>
         </div>
 
+        <!-- شبكة عرض البطاقات -->
         <div id="clippings-grid" class="row g-4"></div>
 
     </div>
 
-    <!-- Scripts -->
+    <!-- JS Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // ضع روابط مفاتيح مشروعك هنا
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
-        const TABLE_NAME = "clippings"; // اسم جدول القصاصات في Supabase
+        const DATE_FIELD = "published_date"; 
 
         let supabaseClient;
-        let all2026Clippings = [];
+        let data2026Only = [];
 
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         } catch (e) {
-            console.error("خطأ الاتصال بـ Supabase:", e);
+            console.error("خطأ في إعداد Supabase:", e);
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            fetchAllClippingsWithoutLimits();
+            loadAll2026Clippings();
         });
 
-        // 🎯 دالة الجلب المحدثة التي تتجاوز قيد الـ 100 عنصر لتجلب الـ 569 كاملة
-        async function fetchAllClippingsWithoutLimits() {
+        // 🎯 دالة الجلب المتقدمة التي تتجاوز حد الـ 100 عنصر وتجلب كافة الـ 569+ قصاصات
+        async function loadAll2026Clippings() {
             const container = document.getElementById("clippings-grid");
-            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div><p class="mt-2 text-muted">جاري تحميل جميع القصاصات من قاعدة البيانات...</p></div>';
+            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div><p class="mt-2 text-muted">جاري تحميل كافة قصاصات سنة 2026...</p></div>';
 
             if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
-                container.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى التأكد من استبدال المفاتيح SUPABASE_URL و SUPABASE_KEY بمفاتيح مشروعك الصحيحة.</div>`;
+                container.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY أولاً.</div>`;
                 return;
             }
 
-            let loadedRows = [];
+            let all2026Rows = [];
             let page = 0;
-            const pageSize = 1000; // جلب الدفعات بحجم 1000 عنصر
+            const pageSize = 1000; // جلب آلاف العناصر بدلاً من التوقف عند 100
             let hasMore = true;
 
-            try {
-                while (hasMore) {
-                    const { data, error } = await supabaseClient
-                        .from(TABLE_NAME)
-                        .select('*')
-                        .range(page * pageSize, (page + 1) * pageSize - 1);
+            // حلقة تكرارية للتغلب على حد 100 عنصر وجلب كافة قصاصات 2026
+            while (hasMore) {
+                const { data, error } = await supabaseClient
+                    .from('clippings')
+                    .select('*')
+                    .gte(DATE_FIELD, '2026-01-01T00:00:00.000Z')
+                    .lte(DATE_FIELD, '2026-12-31T23:59:59.999Z')
+                    .range(page * pageSize, (page + 1) * pageSize - 1)
+                    .order(DATE_FIELD, { ascending: false });
 
-                    if (error) {
-                        console.error("خطأ جلب البيانات:", error);
-                        container.innerHTML = `<div class="col-12 text-center text-danger py-4">تعذر تحميل البيانات: ${error.message}</div>`;
-                        return;
-                    }
-
-                    if (data && data.length > 0) {
-                        loadedRows = loadedRows.concat(data);
-                        if (data.length < pageSize) {
-                            hasMore = false;
-                        } else {
-                            page++;
-                        }
-                    } else {
-                        hasMore = false;
-                    }
+                if (error) {
+                    console.error("خطأ جلب البيانات:", error);
+                    container.innerHTML = `<div class="col-12 text-center text-danger py-4">تعذر جلب البيانات: ${error.message}</div>`;
+                    return;
                 }
 
-                // تصفية النتائج لضمان حصر القصاصات في عام 2026
-                all2026Clippings = loadedRows.filter(item => {
-                    const pubDate = item.published_date || item.created_at;
-                    if (!pubDate) return true; // إظهار العناصر إن لم يوجد تاريخ محدد
-                    return new Date(pubDate).getFullYear() === 2026;
-                });
-
-                populateDropdownFilters(all2026Clippings);
-                applyFilters();
-
-            } catch (err) {
-                console.error("خطأ غير متوقع:", err);
-                container.innerHTML = `<div class="col-12 text-center text-danger py-4">حدث خطأ أثناء الاتصال بقاعدة البيانات.</div>`;
+                if (data && data.length > 0) {
+                    all2026Rows = all2026Rows.concat(data);
+                    if (data.length < pageSize) {
+                        hasMore = false;
+                    } else {
+                        page++;
+                    }
+                } else {
+                    hasMore = false;
+                }
             }
+
+            data2026Only = all2026Rows;
+            populateDropdownFilters(data2026Only);
+            applyFilters();
         }
 
+        // تعبئة الخيارات في قوائم الفرز تلقائياً بناءً على البيانات المجلوبة
         function populateDropdownFilters(data) {
             const sourceSelect = document.getElementById("filter-source");
             const categorySelect = document.getElementById("filter-category");
@@ -321,8 +314,9 @@
             });
         }
 
+        // تطبيق الفلاتر والبحث والترتيب على البيانات كاملة
         function applyFilters() {
-            let filtered = [...all2026Clippings];
+            let filtered = [...data2026Only];
 
             const searchValue = document.getElementById("filter-search").value.toLowerCase().trim();
             const categoryValue = document.getElementById("filter-category").value;
@@ -345,25 +339,24 @@
 
             if (dateFromValue) {
                 filtered = filtered.filter(item => {
-                    const d = item.published_date || item.created_at;
-                    if (!d) return false;
-                    return new Date(d).toISOString().split('T')[0] >= dateFromValue;
+                    if (!item[DATE_FIELD]) return false;
+                    const pubDate = new Date(item[DATE_FIELD]).toISOString().split('T')[0];
+                    return pubDate >= dateFromValue;
                 });
             }
 
             if (dateToValue) {
                 filtered = filtered.filter(item => {
-                    const d = item.published_date || item.created_at;
-                    if (!d) return false;
-                    return new Date(d).toISOString().split('T')[0] <= dateToValue;
+                    if (!item[DATE_FIELD]) return false;
+                    const pubDate = new Date(item[DATE_FIELD]).toISOString().split('T')[0];
+                    return pubDate <= dateToValue;
                 });
             }
 
-            // الترتيب
             if (sortValue === "newest_published") {
-                filtered.sort((a, b) => new Date(b.published_date || b.created_at || 0) - new Date(a.published_date || a.created_at || 0));
+                filtered.sort((a, b) => new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0));
             } else if (sortValue === "oldest_published") {
-                filtered.sort((a, b) => new Date(a.published_date || a.created_at || 0) - new Date(b.published_date || b.created_at || 0));
+                filtered.sort((a, b) => new Date(a[DATE_FIELD] || 0) - new Date(b[DATE_FIELD] || 0));
             } else if (sortValue === "importance") {
                 filtered.sort((a, b) => (b.importance === "عالي" ? 1 : -1));
             } else if (sortValue === "source") {
@@ -372,8 +365,8 @@
                 filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ar'));
             }
 
-            document.getElementById("clippings-count").innerText = `${filtered.length} قصاصة`;
-            renderGrid(filtered);
+            document.getElementById("clippings-count").innerText = `${filtered.length} قصاصة (من أصل ${data2026Only.length})`;
+            renderGrid(filtered, "clippings-grid");
         }
 
         function resetFilters() {
@@ -387,14 +380,15 @@
             applyFilters();
         }
 
-        function renderGrid(items) {
-            const container = document.getElementById("clippings-grid");
+        // عرض بطاقات القصاصات في الشبكة
+        function renderGrid(items, targetContainerId) {
+            const container = document.getElementById(targetContainerId);
             
             if (items.length === 0) {
                 container.innerHTML = `
                     <div class="col-12 text-center py-5">
                         <div class="p-5 bg-white rounded-4 shadow-sm text-muted">
-                            <i class="fa-regular fa-newspaper fa-3x mb-3 text-warning"></i>
+                            <i class="fa-regular fa-calendar-xmark fa-3x mb-3 text-warning"></i>
                             <h5 class="fw-bold">لم نجد أية قصاصات تطابق معايير البحث الحالية.</h5>
                         </div>
                     </div>`;
@@ -402,8 +396,7 @@
             }
 
             container.innerHTML = items.map(item => {
-                const rawDate = item.published_date || item.created_at;
-                const issueDate = rawDate ? new Date(rawDate).toLocaleDateString('ar-DZ') : 'غير محدد';
+                const issueDate = item[DATE_FIELD] ? new Date(item[DATE_FIELD]).toLocaleDateString('ar-DZ') : 'غير محدد';
 
                 return `
                 <div class="col-md-6 col-lg-4">
@@ -413,14 +406,14 @@
                                 <span class="card-tag-category"><i class="fa-solid fa-tag me-1"></i> ${item.category || 'أخبار عامة'}</span>
                                 <span class="card-tag-importance-${item.importance || 'عادي'}">أهمية: ${item.importance || 'عادي'}</span>
                             </div>
-                            <h5 class="fw-bold text-dark mb-3" style="font-size: 1.15rem; line-height: 1.6;">${item.title || 'بدون عنوان'}</h5>
-                            <p class="text-muted small mb-4 opacity-75" style="line-height: 1.6;">${item.summary ? item.summary.substring(0, 130) + '...' : 'لا يوجد ملخص متاح.'}</p>
+                            <h5 class="fw-bold text-dark mb-3" style="font-size: 1.15rem; line-height: 1.6;">${item.title}</h5>
+                            <p class="text-muted small mb-4 opacity-75" style="line-height: 1.6;">${item.summary ? item.summary.substring(0, 120) + '...' : 'لا يوجد ملخص متاح.'}</p>
                         </div>
                         <div>
                             <hr class="my-3 opacity-10">
                             <div class="d-flex justify-content-between align-items-center small text-secondary mb-3">
-                                <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source || 'مصدر غير معروف'}</span>
-                                <span><i class="fa-regular fa-calendar me-1"></i> ${issueDate}</span>
+                                <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source || 'غير محدد'}</span>
+                                <span><i class="fa-regular fa-calendar me-1"></i> الصدور: ${issueDate}</span>
                             </div>
                             <a href="${item.link || '#'}" target="_blank" class="btn btn-read-more w-100 text-decoration-none text-center">
                                 قراءة الخبر من المصدر <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
