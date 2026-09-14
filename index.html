@@ -18,7 +18,6 @@
             --primary-dark: #0f2d22;
             --primary-emerald: #1b4332;
             --accent-gold: #d4af37;
-            --accent-gold-hover: #b89628;
             --bg-light: #f4f6f8;
             --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
             --hover-shadow: 0 15px 35px rgba(27, 67, 50, 0.12);
@@ -30,20 +29,26 @@
             color: #2b2b2b;
         }
 
-        /* الهيدر الرئيسي الجذاب */
+        /* الهيدر الرئيسي وتنسيق اللوغو */
         .hero-header {
             background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-emerald) 100%);
             color: white;
-            padding: 3.5rem 1rem 3rem 1rem;
+            padding: 3rem 1rem 2.5rem 1rem;
             position: relative;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             border-bottom: 5px solid var(--accent-gold);
         }
 
+        .association-logo {
+            max-height: 100px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.3));
+        }
+
         .hero-title {
             font-family: 'Cairo', sans-serif;
             font-weight: 700;
-            letter-spacing: -0.5px;
         }
 
         .gold-badge {
@@ -56,7 +61,7 @@
             display: inline-block;
         }
 
-        /* تصميم التبويبات الفاخر */
+        /* التبويبات */
         .custom-nav-pills {
             background: white;
             padding: 8px;
@@ -70,7 +75,6 @@
             border-radius: 12px;
             padding: 1rem 1.5rem;
             transition: all 0.3s ease;
-            border: 1px solid transparent;
         }
 
         .custom-nav-pills .nav-link.active {
@@ -82,7 +86,6 @@
         /* لوحة الفرز والتصفية */
         .filter-card {
             background: white;
-            border: none;
             border-radius: 20px;
             box-shadow: var(--card-shadow);
             padding: 1.8rem;
@@ -92,8 +95,6 @@
             border-radius: 10px;
             border: 1.5px solid #e2e8f0;
             padding: 0.6rem 1rem;
-            font-size: 0.95rem;
-            transition: all 0.2s ease;
         }
 
         .form-control:focus, .form-select:focus {
@@ -101,15 +102,14 @@
             box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.2);
         }
 
-        /* بطاقة القصاصة (News Cards) */
+        /* بطاقة القصاصة */
         .card-clipping {
             border: none;
             border-radius: 18px;
             background: white;
             box-shadow: var(--card-shadow);
-            transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+            transition: all 0.3s ease;
             height: 100%;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -172,18 +172,22 @@
 </head>
 <body>
 
-    <!-- الهيدر الأنيق -->
+    <!-- الهيدر مع اللوغو -->
     <header class="hero-header text-center">
         <div class="container">
+            <!-- الشعار: يمكنك استبدال logo.png برابط صورة اللوغو الخاصة بالجمعية -->
+            <div class="mb-3">
+                <img src="logo.png" alt="شعار جمعية الشيخ أبي إسحاق" class="association-logo" onerror="this.style.display='none'">
+            </div>
             <span class="gold-badge mb-3"><i class="fa-solid fa-archway me-1"></i> وحدة الرصد والإعلام الرقمي</span>
-            <h1 class="hero-title display-5 mb-2">أرشيف القصاصات الصحفية والإعلامية</h1>
+            <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية والإعلامية</h1>
             <p class="lead opacity-75 mb-0 fs-6">جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
         </div>
     </header>
 
     <div class="container my-4">
         
-        <!-- التبويبات الفاخرة -->
+        <!-- التبويبات -->
         <ul class="nav nav-pills custom-nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active fs-5" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
@@ -205,15 +209,12 @@
                     <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> تغطية اليوم حصراً</h4>
                     <span id="today-count" class="counter-badge">0 قصاصة</span>
                 </div>
-                <div id="today-grid" class="row g-4">
-                    <!-- تحميل محتوى اليوم -->
-                </div>
+                <div id="today-grid" class="row g-4"></div>
             </div>
 
             <!-- 2. قسم الأرشيف الكامل -->
             <div class="tab-pane fade" id="archive-content" role="tabpanel">
                 
-                <!-- لوحة التصفية الأنيقة -->
                 <div class="filter-card mb-4">
                     <div class="row g-3">
                         <div class="col-md-3">
@@ -258,9 +259,7 @@
                     <span id="archive-count" class="counter-badge">0 قصاصة</span>
                 </div>
 
-                <div id="archive-grid" class="row g-4">
-                    <!-- تحميل الأرشيف -->
-                </div>
+                <div id="archive-grid" class="row g-4"></div>
             </div>
 
         </div>
@@ -270,12 +269,19 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // إعداد الاتصال بـ Supabase
-        const SUPABASE_URL = "https://YOUR_SUPABASE_URL.supabase.co"; // ضع URL الخاص بك
-        const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";               // ضع Anon Key (Public)
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // ⚠️ مهم جداً: تأكد من كتابة URL والمفتاح الخاصين بـ Supabase هنا ⚠️
+        const SUPABASE_URL = "https://YOUR_SUPABASE_URL.supabase.co"; 
+        const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY"; 
 
+        let supabaseClient;
         let allArchiveData = [];
+
+        // إعداد الاتصال ومعالجة الأخطاء
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch (e) {
+            console.error("خطأ في إعداد Supabase:", e);
+        }
 
         document.addEventListener("DOMContentLoaded", () => {
             loadTodayClippings();
@@ -285,6 +291,11 @@
         async function loadTodayClippings() {
             const todayContainer = document.getElementById("today-grid");
             todayContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
+
+            if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
+                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY في كود HTML أولاً.</div>`;
+                return;
+            }
 
             const now = new Date();
             const year = now.getFullYear();
@@ -299,7 +310,12 @@
                 .lte('created_at', `${todayStr}T23:59:59.999Z`)
                 .order('created_at', { ascending: false });
 
-            if (error || !data || data.length === 0) {
+            if (error) {
+                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">تعذر جلب البيانات: ${error.message}</div>`;
+                return;
+            }
+
+            if (!data || data.length === 0) {
                 todayContainer.innerHTML = `
                     <div class="col-12 text-center py-5">
                         <div class="p-5 bg-white rounded-4 shadow-sm">
@@ -316,18 +332,23 @@
             renderGrid(data, "today-grid");
         }
 
-        // 2. جلب الأرشيف وبناء القوائم المنسدلة
+        // 2. جلب الأرشيف الكامل
         async function loadArchiveClippings() {
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
+
+            if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
+                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY في كود HTML أولاً.</div>`;
+                return;
+            }
 
             const { data, error } = await supabaseClient
                 .from('clippings')
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (error || !data) {
-                archiveContainer.innerHTML = '<div class="col-12 text-center text-danger py-5">حدث خطأ أثناء جلب الأرشيف.</div>';
+            if (error) {
+                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-5">خطأ في الاتصال بقاعدة البيانات: ${error.message}</div>`;
                 return;
             }
 
@@ -354,7 +375,7 @@
             });
         }
 
-        // 3. فلترة وفرز الأرشيف الشامل
+        // 3. محرك الفرز
         function applyArchiveFilters() {
             let filtered = [...allArchiveData];
 
@@ -391,7 +412,7 @@
             renderGrid(filtered, "archive-grid");
         }
 
-        // 4. رسم البطاقات بأناقة
+        // 4. بناء البطاقات
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
@@ -400,7 +421,7 @@
                     <div class="col-12 text-center py-5">
                         <div class="p-5 bg-white rounded-4 shadow-sm text-muted">
                             <i class="fa-solid fa-filter-circle-xmark fa-3x mb-3"></i>
-                            <h5 class="fw-bold">لم نجد أية نتائج تطابق محددات البحث الأخيرة.</h5>
+                            <h5 class="fw-bold">لم نجد أية نتائج تطابق معايير الفرز المحددة.</h5>
                         </div>
                     </div>`;
                 return;
@@ -423,7 +444,7 @@
                                 <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source}</span>
                                 <span><i class="fa-regular fa-calendar me-1"></i> ${new Date(item.created_at).toLocaleDateString('ar-DZ')}</span>
                             </div>
-                            <a href="${item.link}" target="_blank" class="btn btn-read-more w-100 text-decoration-none">
+                            <a href="${item.link}" target="_blank" class="btn btn-read-more w-100 text-decoration-none text-center">
                                 قراءة الخبر من المصدر <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
                             </a>
                         </div>
