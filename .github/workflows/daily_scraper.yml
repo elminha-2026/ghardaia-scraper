@@ -2,9 +2,8 @@ name: Ghardaia Daily Scraper
 
 on:
   schedule:
-    # 04:00 UTC = 05:00 صباحاً بتوقيت الجزائر
-    - cron: '0 4 * * *'
-  workflow_dispatch:
+    - cron: '0 4,16 * * *'  # يعمل مرتين يومياً: الساعة 5 صباحاً و 5 مساءً بتوقيت الجزائر
+  workflow_dispatch:        # للتشغيل اليدوي في أي وقت
 
 jobs:
   scrape:
@@ -24,4 +23,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Scraper Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python scraper.py
