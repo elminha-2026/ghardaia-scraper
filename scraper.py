@@ -1,29 +1,36 @@
 import os
+import sys
 import feedparser
 import urllib.parse
 from supabase import create_client, Client
 
-# --- 1. إعدادات الاتصال بـ Supabase ---
-SUPABASE_URL = os.environ.get("https://sixvgxtoizjxprkpkjki.supabase.co")
-SUPABASE_KEY = os.environ.get("sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p")  # مفتاح service_role
+# --- 1. التحقق من مفاتيح البيئة ---
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")  # مفتاح service_role
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("بيانات الاتصال بـ Supabase غير مكتملة في Secrets!")
+    print("❌ خطأ: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في Secrets!")
+    sys.exit(1)
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as e:
+    print(f"❌ خطأ أثناء الاتصال بـ Supabase: {e}")
+    sys.exit(1)
 
 # --- 2. إعداد استعلام البحث عن أخبار 2026 ---
-# البحث يتضمن الكلمات المفتاحية مع تخصيص سنة 2026
 QUERY = '(غرداية OR "تراث غرداية" OR "الشيخ أبي إسحاق") "2026"'
 ENCODED_QUERY = urllib.parse.quote(QUERY)
-
-# رابط RSS الخاص بأخبار جوجل
 RSS_URL = f"https://news.google.com/rss/search?q={ENCODED_QUERY}&hl=ar&gl=DZ&ceid=DZ:ar"
 
 def scrape_and_store():
     print("🚀 بدء تمشيط الأخبار لجلب القصاصات...")
-    feed = feedparser.parse(RSS_URL)
-    
+    try:
+        feed = feedparser.parse(RSS_URL)
+    except Exception as e:
+        print(f"❌ خطأ أثناء جلب تغذية RSS: {e}")
+        return
+
     if not feed.entries:
         print("⚠️ لم يتم العثور على مقالات جديدة.")
         return
@@ -35,8 +42,12 @@ def scrape_and_store():
         title = entry.get("title", "").strip()
         link = entry.get("link", "").strip()
         published = entry.get("published", "").strip()
-        source = entry.get("source", {}).get("title", "صحافة إلكترونية")
         
+        # استخراج اسم المصدر
+        source = "صحافة إلكترونية"
+        if "source" in entry and isinstance(entry.source, dict):
+            source = entry.source.get("title", "صحافة إلكترونية")
+
         summary = entry.get("summary", "")
         if not summary and "title_detail" in entry:
             summary = title
@@ -52,15 +63,14 @@ def scrape_and_store():
             }
             
             try:
-                # إدراج المقال في قاعدة البيانات
                 supabase.table("clippings").insert(data).execute()
                 new_articles_count += 1
                 print(f"✅ قصاصة جديدة: {title}")
-            except Exception:
-                # المقال موجود مسبقاً في الأرشيف فتتجاهله قاعدة البيانات
+            except Exception as e:
+                # تجاوز المقالات المكررة أو الأخطاء الفردية دون إيقاف السكريبت
                 skipped_count += 1
 
-    print(f"\n📊 النتيجة: تم إدراج {new_articles_count} مقال جديد | تم تجاهل {skipped_count} مقال مكرر.")
+    print(f"\n📊 النتيجة: تم إدراج {new_articles_count} مقال جديد | تم تجاهل/تكرار {skipped_count} مقال.")
 
 if __name__ == "__main__":
     scrape_and_store()
