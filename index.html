@@ -79,7 +79,7 @@
         <ul class="nav nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active fs-5 py-3" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
-                    <i class="fa-solid fa-newspaper me-2"></i> قصاصات اليوم
+                    <i class="fa-solid fa-newspaper me-2"></i> قصاصات اليوم الصادرة
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -94,7 +94,7 @@
             <!-- 1. قسم قصاصات اليوم -->
             <div class="tab-pane fade show active" id="today-content" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="text-secondary mb-0"><i class="fa-regular fa-calendar-check me-2"></i> ما صدر اليوم</h4>
+                    <h4 class="text-secondary mb-0"><i class="fa-regular fa-calendar-check me-2"></i> قصاصات تاريخ اليوم حصراً</h4>
                     <span id="today-count" class="badge bg-dark fs-6">0 قصاصة</span>
                 </div>
                 <div id="today-grid" class="row g-4">
@@ -105,59 +105,58 @@
             <!-- 2. قسم الأرشيف الكامل والفرز -->
             <div class="tab-pane fade" id="archive-content" role="tabpanel">
                 
-                <!-- لوحة التصفية والفرز الشاملة -->
+                <!-- لوحة التصفية والفرز الشاملة لكل الاحتمالات -->
                 <div class="filter-section">
                     <div class="row g-3">
-                        <!-- البحث النصي -->
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">بحث في العناوين والملخصات</label>
-                            <input type="text" id="filter-search" class="form-control" placeholder="اكتب كلمة البحث..." oninput="applyArchiveFilters()">
+                        <!-- 1. البحث النصي المباشر -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold"><i class="fa-solid fa-magnifying-glass me-1"></i> بحث بالكلمات</label>
+                            <input type="text" id="filter-search" class="form-control" placeholder="بحث بالعنوان أو النص..." oninput="applyArchiveFilters()">
                         </div>
-                        <!-- التصفية حسب التصنيف -->
+                        <!-- 2. التصفية حسب التصنيف -->
                         <div class="col-md-2">
-                            <label class="form-label fw-bold">التصنيف</label>
+                            <label class="form-label fw-bold"><i class="fa-solid fa-tags me-1"></i> الموضوع / التصنيف</label>
                             <select id="filter-category" class="form-select" onchange="applyArchiveFilters()">
-                                <option value="">الكل</option>
-                                <option value="تراث وثقافة">تراث وثقافة</option>
-                                <option value="نشاطات الجمعية">نشاطات الجمعية</option>
-                                <option value="أخبار عامة">أخبار عامة</option>
+                                <option value="">كافة الموضوعات</option>
                             </select>
                         </div>
-                        <!-- التصفية حسب الأهمية -->
+                        <!-- 3. التصفية حسب درجة الأهمية -->
                         <div class="col-md-2">
-                            <label class="form-label fw-bold">الأهمية</label>
+                            <label class="form-label fw-bold"><i class="fa-solid fa-star me-1"></i> درجة الأهمية</label>
                             <select id="filter-importance" class="form-select" onchange="applyArchiveFilters()">
                                 <option value="">الكل</option>
                                 <option value="عالي">عالي</option>
                                 <option value="عادي">عادي</option>
                             </select>
                         </div>
-                        <!-- التصفية حسب المصدر -->
+                        <!-- 4. التصفية حسب الجريدة / المصدر -->
                         <div class="col-md-2">
-                            <label class="form-label fw-bold">المصدر</label>
+                            <label class="form-label fw-bold"><i class="fa-regular fa-newspaper me-1"></i> المصدر الإعلامي</label>
                             <select id="filter-source" class="form-select" onchange="applyArchiveFilters()">
                                 <option value="">كافة المصادر</option>
                             </select>
                         </div>
-                        <!-- الترتيب -->
-                        <div class="col-md-2">
-                            <label class="form-label fw-bold">ترتيب حسب</label>
+                        <!-- 5. التصفية والتصنيف حسب خيارات الترتيب -->
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold"><i class="fa-solid fa-arrow-down-wide-short me-1"></i> خيارات الترتيب</label>
                             <select id="filter-sort" class="form-select" onchange="applyArchiveFilters()">
-                                <option value="newest">الأحدث أولاً</option>
-                                <option value="oldest">الأقدم أولاً</option>
-                                <option value="importance">الأهم أولاً</option>
+                                <option value="newest">الأحدث وصولاً</option>
+                                <option value="oldest">الأقدم وصولاً</option>
+                                <option value="importance">الأعلى أهمية أولاً</option>
+                                <option value="source">أبجدياً حسب المصدر</option>
+                                <option value="title">أبجدياً حسب العنوان</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="text-secondary mb-0"><i class="fa-solid fa-list-ul me-2"></i> نتائج الأرشيف</h4>
+                    <h4 class="text-secondary mb-0"><i class="fa-solid fa-list-ul me-2"></i> القصاصات المخزنة في الأرشيف</h4>
                     <span id="archive-count" class="badge bg-dark fs-6">0 قصاصة</span>
                 </div>
 
                 <div id="archive-grid" class="row g-4">
-                    <!-- سيتم تحميل القصاصات المفروزة هنا -->
+                    <!-- سيتم تحميل كافة القصاصات والفرز هنا -->
                 </div>
             </div>
 
@@ -170,34 +169,41 @@
     <script>
         // إعداد الاتصال بـ Supabase
         const SUPABASE_URL = "https://YOUR_SUPABASE_URL.supabase.co"; // استبدل بـ URL الخاص بك
-        const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";               // استبدل بـ Anon Key الخاص بك
+        const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";               // استبدل بـ Anon Key (Public)
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let allArchiveData = []; // تخزين الأرشيف الكامل للفرز المحلي السريع
+        let allArchiveData = []; // تخزين الأرشيف في الذاكرة لسرعة التصفية والفرز
 
         document.addEventListener("DOMContentLoaded", () => {
             loadTodayClippings();
         });
 
-        // --- 1. جلب قصاصات اليوم فقط ---
+        // --- 1. جلب قصاصات اليوم حصراً (تاريخ اليوم فقط) ---
         async function loadTodayClippings() {
             const todayContainer = document.getElementById("today-grid");
             todayContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
 
-            const today = new Date().toISOString().split('T')[0];
+            // تحديد التاريخ الحالي بتوقيت الجهاز YYYY-MM-DD
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
 
-            // جلب البيانات المخزنة بتاريخ اليوم
+            // جلب الأرشيف والفلترة الحازمة لتاريخ اليوم فقط
             const { data, error } = await supabaseClient
                 .from('clippings')
                 .select('*')
-                .gte('created_at', `${today}T00:00:00.000Z`)
+                .gte('created_at', `${todayStr}T00:00:00.000Z`)
+                .lte('created_at', `${todayStr}T23:59:59.999Z`)
                 .order('created_at', { ascending: false });
 
             if (error || !data || data.length === 0) {
                 todayContainer.innerHTML = `
                     <div class="col-12 text-center py-5 text-muted">
-                        <i class="fa-regular fa-folder-open fa-3x mb-3"></i>
-                        <h5>لا توجد قصاصات جديدة مسجلة اليوم حتى الآن.</h5>
+                        <i class="fa-regular fa-calendar-xmark fa-3x mb-3 text-warning"></i>
+                        <h5>لا توجد قصاصات صادرة أو مؤرشفة بتاريخ اليوم (${todayStr}).</h5>
+                        <p class="small">يمكنك مراجعة الأرشيف الكامل لرؤية جميع القصاصات السابقة.</p>
                     </div>`;
                 document.getElementById("today-count").innerText = "0 قصاصة";
                 return;
@@ -207,7 +213,7 @@
             renderGrid(data, "today-grid");
         }
 
-        // --- 2. جلب الأرشيف الكامل وبناء قوائم التصفية ---
+        // --- 2. جلب الأرشيف الكامل وبناء خيارات التصفية الأوتوماتيكية ---
         async function loadArchiveClippings() {
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
@@ -223,22 +229,30 @@
             }
 
             allArchiveData = data;
-            populateSourceFilter(data);
+            populateDropdownFilters(data);
             applyArchiveFilters();
         }
 
-        // استخراج المصادر المتوفرة ملء القائمة أوتوماتيكياً
-        function populateSourceFilter(data) {
+        // بناء القوائم المنسدلة (المصادر والموضوعات) بناءً على ما هو موجود بالفعل في البيانات
+        function populateDropdownFilters(data) {
             const sourceSelect = document.getElementById("filter-source");
+            const categorySelect = document.getElementById("filter-category");
+
             const sources = [...new Set(data.map(item => item.source))].filter(Boolean);
-            
+            const categories = [...new Set(data.map(item => item.category))].filter(Boolean);
+
             sourceSelect.innerHTML = '<option value="">كافة المصادر</option>';
             sources.forEach(src => {
                 sourceSelect.innerHTML += `<option value="${src}">${src}</option>`;
             });
+
+            categorySelect.innerHTML = '<option value="">كافة الموضوعات</option>';
+            categories.forEach(cat => {
+                categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
         }
 
-        // --- 3. تطبيق خيارات الفرز والتصفية الشاملة ---
+        // --- 3. محرك التصفية والفرز لكافة الاحتمالات ---
         function applyArchiveFilters() {
             let filtered = [...allArchiveData];
 
@@ -248,7 +262,7 @@
             const sourceValue = document.getElementById("filter-source").value;
             const sortValue = document.getElementById("filter-sort").value;
 
-            // فلترة بالبحث النصي
+            // 1. تصفية بالكلمة المفتاحية
             if (searchValue) {
                 filtered = filtered.filter(item => 
                     (item.title && item.title.toLowerCase().includes(searchValue)) ||
@@ -256,35 +270,39 @@
                 );
             }
 
-            // فلترة بالتصنيف
+            // 2. تصفية بالموضوع / التصنيف
             if (categoryValue) {
                 filtered = filtered.filter(item => item.category === categoryValue);
             }
 
-            // فلترة بالأهمية
+            // 3. تصفية بالأهمية
             if (importanceValue) {
                 filtered = filtered.filter(item => item.importance === importanceValue);
             }
 
-            // فلترة بالمصدر
+            // 4. تصفية بالمصدر الإعلامي
             if (sourceValue) {
                 filtered = filtered.filter(item => item.source === sourceValue);
             }
 
-            // ترتيب النتائج
+            // 5. احتمالات الفرز والترتيب
             if (sortValue === "newest") {
                 filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             } else if (sortValue === "oldest") {
                 filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             } else if (sortValue === "importance") {
                 filtered.sort((a, b) => (b.importance === "عالي" ? 1 : -1));
+            } else if (sortValue === "source") {
+                filtered.sort((a, b) => (a.source || '').localeCompare(b.source || '', 'ar'));
+            } else if (sortValue === "title") {
+                filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ar'));
             }
 
             document.getElementById("archive-count").innerText = `${filtered.length} قصاصة`;
             renderGrid(filtered, "archive-grid");
         }
 
-        // --- 4. بناء كروت القصاصات داخل الشبكة ---
+        // --- 4. عرض النتائج بطريقة جذابة ومقروءة ---
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
@@ -292,7 +310,7 @@
                 container.innerHTML = `
                     <div class="col-12 text-center py-5 text-muted">
                         <i class="fa-solid fa-filter-circle-xmark fa-3x mb-3"></i>
-                        <h5>لا توجد نتائج تطابق خيارات الفرز المحددة.</h5>
+                        <h5>لا توجد نتائج تطابق معايير الفرز المحددة.</h5>
                     </div>`;
                 return;
             }
