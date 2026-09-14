@@ -1,45 +1,66 @@
+import os
 import feedparser
+import urllib.parse
 from supabase import create_client, Client
 
-# --- استبدل هذه القيم ببيانات مشروعك من Supabase ---
-SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"
-SUPABASE_SERVICE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"
+# --- 1. إعدادات الاتصال بـ Supabase ---
+SUPABASE_URL = os.environ.get("https://sixvgxtoizjxprkpkjki.supabase.co")
+SUPABASE_KEY = os.environ.get("sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p")  # مفتاح service_role
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("بيانات الاتصال بـ Supabase غير مكتملة في Secrets!")
 
-# رابط تغذية الأخبار المباشر عن غرداية
-RSS_URL = "https://news.google.com/rss/search?q=%D2%BA%D8%B1%D8%AF%D8%A7%D9%8A%D8%A9+%D8%A7%D9%84%D8%AC%D8%B2%D8%A7%D8%A6%D8%B1&hl=ar&gl=DZ&ceid=DZ:ar"
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def run_scraper():
-    print("🚀 بدء رصد الأخبار...")
+# --- 2. إعداد استعلام البحث عن أخبار 2026 ---
+# البحث يتضمن الكلمات المفتاحية مع تخصيص سنة 2026
+QUERY = '(غرداية OR "تراث غرداية" OR "الشيخ أبي إسحاق") "2026"'
+ENCODED_QUERY = urllib.parse.quote(QUERY)
+
+# رابط RSS الخاص بأخبار جوجل
+RSS_URL = f"https://news.google.com/rss/search?q={ENCODED_QUERY}&hl=ar&gl=DZ&ceid=DZ:ar"
+
+def scrape_and_store():
+    print("🚀 بدء تمشيط الأخبار لجلب القصاصات...")
     feed = feedparser.parse(RSS_URL)
-    new_count = 0
+    
+    if not feed.entries:
+        print("⚠️ لم يتم العثور على مقالات جديدة.")
+        return
+
+    new_articles_count = 0
+    skipped_count = 0
     
     for entry in feed.entries:
-        title = entry.title
-        link = entry.link
-        published = entry.get("published", "")
-        summary = entry.get("summary", "").replace("<p>", "").replace("</p>", "")
-        source = entry.get("source", {}).get("title", "جريدة جزائرية")
+        title = entry.get("title", "").strip()
+        link = entry.get("link", "").strip()
+        published = entry.get("published", "").strip()
+        source = entry.get("source", {}).get("title", "صحافة إلكترونية")
+        
+        summary = entry.get("summary", "")
+        if not summary and "title_detail" in entry:
+            summary = title
 
-        try:
+        if title and link:
             data = {
                 "title": title,
                 "source": source,
                 "link": link,
                 "published_date": published,
-                "summary": summary[:250] + "...",
-                "category": "report"
+                "summary": summary,
+                "category": "article_2026"
             }
-            # التخزين المباشر في قاعدة البيانات
-            supabase.table("clippings").insert(data).execute()
-            print(f"✅ تم إضافة: {title}")
-            new_count += 1
-        except Exception:
-            # المقال مكرر أو موجود مسبقاً
-            pass
+            
+            try:
+                # إدراج المقال في قاعدة البيانات
+                supabase.table("clippings").insert(data).execute()
+                new_articles_count += 1
+                print(f"✅ قصاصة جديدة: {title}")
+            except Exception:
+                # المقال موجود مسبقاً في الأرشيف فتتجاهله قاعدة البيانات
+                skipped_count += 1
 
-    print(f"✨ اكتملت العملية! تم إدراج {new_count} مقال جديد.")
+    print(f"\n📊 النتيجة: تم إدراج {new_articles_count} مقال جديد | تم تجاهل {skipped_count} مقال مكرر.")
 
 if __name__ == "__main__":
-    run_scraper()
+    scrape_and_store()
