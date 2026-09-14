@@ -168,7 +168,7 @@
 </head>
 <body>
 
-    <!-- الهيدر مع الشعار -->
+    <!-- الهيدر مع اللوغو -->
     <header class="hero-header text-center">
         <div class="container">
             <div class="mb-3">
@@ -207,15 +207,14 @@
                 <div id="today-grid" class="row g-4"></div>
             </div>
 
-            <!-- 2. قسم الأرشيف الكامل والتصفية بالصدور -->
+            <!-- 2. قسم الأرشيف الكامل والفرز -->
             <div class="tab-pane fade" id="archive-content" role="tabpanel">
                 
                 <div class="filter-card mb-4">
-                    <!-- السطر الأول من الفرز -->
                     <div class="row g-3 mb-2">
                         <div class="col-md-4">
                             <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-magnifying-glass me-1"></i> بحث بالنص</label>
-                            <input type="text" id="filter-search" class="form-control" placeholder="بحث بالفي العنوان أو الملخص..." oninput="applyArchiveFilters()">
+                            <input type="text" id="filter-search" class="form-control" placeholder="بحث في العنوان أو الملخص..." oninput="applyArchiveFilters()">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-shapes me-1"></i> الموضوع</label>
@@ -239,7 +238,6 @@
                         </div>
                     </div>
 
-                    <!-- السطر الثاني: الفرز حسب تاريخ الصدور والترتيب -->
                     <div class="row g-3 border-top pt-2 mt-2">
                         <div class="col-md-3">
                             <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> تاريخ الصدور (من)</label>
@@ -285,8 +283,8 @@
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
 
-        // 🟢 اسم عمود تاريخ الصدور في جدول Supabase (تأكد من مطابقته لجدولك، مثلاً: published_at أو issue_date)
-        const DATE_FIELD = "published_at"; 
+        // 🟢 تم ربطه بحقل published_date الخاص بجدولك
+        const DATE_FIELD = "published_date"; 
 
         let supabaseClient;
         let allArchiveData = [];
@@ -335,7 +333,7 @@
                         <div class="p-5 bg-white rounded-4 shadow-sm">
                             <i class="fa-regular fa-calendar-xmark fa-4x text-warning mb-3"></i>
                             <h5 class="fw-bold text-dark">لا توجد قصاصات جديدة صُدرت بتاريخ اليوم (${todayStr})</h5>
-                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض القصاصات السابقة والفرز حسب التاريخ.</p>
+                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض جميع القصاصات السابقة والفرز حسب التاريخ.</p>
                         </div>
                     </div>`;
                 document.getElementById("today-count").innerText = "0 قصاصة";
@@ -389,7 +387,7 @@
             });
         }
 
-        // 3. تصفية وفرز البيانات بناءً على تاريخ الصدور والمعايير الأخرى
+        // 3. تصفية وفرز البيانات بناءً على published_date والمعايير الأخرى
         function applyArchiveFilters() {
             let filtered = [...allArchiveData];
 
@@ -401,7 +399,6 @@
             const dateToValue = document.getElementById("filter-date-to").value;
             const sortValue = document.getElementById("filter-sort").value;
 
-            // فلترة بالنص
             if (searchValue) {
                 filtered = filtered.filter(item => 
                     (item.title && item.title.toLowerCase().includes(searchValue)) ||
@@ -409,14 +406,14 @@
                 );
             }
 
-            // فلترة بالتصنيف والأهمية والمصدر
             if (categoryValue) filtered = filtered.filter(item => item.category === categoryValue);
             if (importanceValue) filtered = filtered.filter(item => item.importance === importanceValue);
             if (sourceValue) filtered = filtered.filter(item => item.source === sourceValue);
 
-            // فلترة حسب تاريخ الصدور (من - إلى)
+            // تصفية بالنطاق الزمني لتاريخ الصدور
             if (dateFromValue) {
                 filtered = filtered.filter(item => {
+                    if (!item[DATE_FIELD]) return false;
                     const pubDate = new Date(item[DATE_FIELD]).toISOString().split('T')[0];
                     return pubDate >= dateFromValue;
                 });
@@ -424,16 +421,17 @@
 
             if (dateToValue) {
                 filtered = filtered.filter(item => {
+                    if (!item[DATE_FIELD]) return false;
                     const pubDate = new Date(item[DATE_FIELD]).toISOString().split('T')[0];
                     return pubDate <= dateToValue;
                 });
             }
 
-            // الترتيب بحسب تاريخ الصدور أو الخيارات الأخرى
+            // الفرز
             if (sortValue === "newest_published") {
-                filtered.sort((a, b) => new Date(b[DATE_FIELD]) - new Date(a[DATE_FIELD]));
+                filtered.sort((a, b) => new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0));
             } else if (sortValue === "oldest_published") {
-                filtered.sort((a, b) => new Date(a[DATE_FIELD]) - new Date(b[DATE_FIELD]));
+                filtered.sort((a, b) => new Date(a[DATE_FIELD] || 0) - new Date(b[DATE_FIELD] || 0));
             } else if (sortValue === "importance") {
                 filtered.sort((a, b) => (b.importance === "عالي" ? 1 : -1));
             } else if (sortValue === "source") {
@@ -446,7 +444,6 @@
             renderGrid(filtered, "archive-grid");
         }
 
-        // إعادة ضبط الفلترة
         function resetArchiveFilters() {
             document.getElementById("filter-search").value = "";
             document.getElementById("filter-category").value = "";
@@ -458,7 +455,7 @@
             applyArchiveFilters();
         }
 
-        // 4. عرض البطاقات مع إبراز تاريخ الصدور
+        // 4. عرض القصاصات
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
