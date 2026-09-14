@@ -29,7 +29,6 @@
             color: #2b2b2b;
         }
 
-        /* الهيدر الرئيسي وتنسيق اللوغو */
         .hero-header {
             background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-emerald) 100%);
             color: white;
@@ -61,7 +60,6 @@
             display: inline-block;
         }
 
-        /* التبويبات */
         .custom-nav-pills {
             background: white;
             padding: 8px;
@@ -83,7 +81,6 @@
             box-shadow: 0 4px 15px rgba(27, 67, 50, 0.3);
         }
 
-        /* لوحة الفرز والتصفية */
         .filter-card {
             background: white;
             border-radius: 20px;
@@ -102,7 +99,6 @@
             box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.2);
         }
 
-        /* بطاقة القصاصة */
         .card-clipping {
             border: none;
             border-radius: 18px;
@@ -175,7 +171,6 @@
     <!-- الهيدر مع اللوغو -->
     <header class="hero-header text-center">
         <div class="container">
-            <!-- الشعار: يمكنك استبدال logo.png برابط صورة اللوغو الخاصة بالجمعية -->
             <div class="mb-3">
                 <img src="logo.png" alt="شعار جمعية الشيخ أبي إسحاق" class="association-logo" onerror="this.style.display='none'">
             </div>
@@ -191,7 +186,7 @@
         <ul class="nav nav-pills custom-nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active fs-5" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
-                    <i class="fa-solid fa-calendar-day me-2 text-warning"></i> قصاصات اليوم الصادرة
+                    <i class="fa-solid fa-calendar-day me-2 text-warning"></i> قصاصات الصادرة اليوم
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -206,7 +201,7 @@
             <!-- 1. قسم قصاصات اليوم -->
             <div class="tab-pane fade show active" id="today-content" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> تغطية اليوم حصراً</h4>
+                    <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> الصحف الصادرة اليوم حصراً</h4>
                     <span id="today-count" class="counter-badge">0 قصاصة</span>
                 </div>
                 <div id="today-grid" class="row g-4"></div>
@@ -242,10 +237,10 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> ترتيب حسب تاريخ الصدور</label>
                             <select id="filter-sort" class="form-select" onchange="applyArchiveFilters()">
-                                <option value="newest">الأحدث وروداً</option>
-                                <option value="oldest">الأقدم وروداً</option>
+                                <option value="newest">أحدث صدوراً (الجديد أولاً)</option>
+                                <option value="oldest">أقدم صدوراً (القديم أولاً)</option>
                                 <option value="importance">حسب الأهمية</option>
                                 <option value="source">أبجدياً حسب الجريدة</option>
                                 <option value="title">أبجدياً حسب العنوان</option>
@@ -269,14 +264,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // ⚠️ مهم جداً: تأكد من كتابة URL والمفتاح الخاصين بـ Supabase هنا ⚠️
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
+
+        // 🟢 متغير يحدد اسم عمود تاريخ الصدور في جدول البيانات (غيره هنا إذا كان اسمه مختلفاً لديك)
+        const DATE_FIELD = "published_at"; 
 
         let supabaseClient;
         let allArchiveData = [];
 
-        // إعداد الاتصال ومعالجة الأخطاء
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         } catch (e) {
@@ -287,13 +283,13 @@
             loadTodayClippings();
         });
 
-        // 1. جلب قصاصات تاريخ اليوم حصراً
+        // 1. جلب القصاصات التي تاريخ صدورها الفعلي هو اليوم
         async function loadTodayClippings() {
             const todayContainer = document.getElementById("today-grid");
             todayContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
 
             if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
-                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY في كود HTML أولاً.</div>`;
+                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY أولاً.</div>`;
                 return;
             }
 
@@ -303,12 +299,13 @@
             const day = String(now.getDate()).padStart(2, '0');
             const todayStr = `${year}-${month}-${day}`;
 
+            // الاعتماد على DATE_FIELD (تاريخ الصدور) بدلاً من created_at
             const { data, error } = await supabaseClient
                 .from('clippings')
                 .select('*')
-                .gte('created_at', `${todayStr}T00:00:00.000Z`)
-                .lte('created_at', `${todayStr}T23:59:59.999Z`)
-                .order('created_at', { ascending: false });
+                .gte(DATE_FIELD, `${todayStr}T00:00:00.000Z`)
+                .lte(DATE_FIELD, `${todayStr}T23:59:59.999Z`)
+                .order(DATE_FIELD, { ascending: false });
 
             if (error) {
                 todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">تعذر جلب البيانات: ${error.message}</div>`;
@@ -320,8 +317,8 @@
                     <div class="col-12 text-center py-5">
                         <div class="p-5 bg-white rounded-4 shadow-sm">
                             <i class="fa-regular fa-calendar-xmark fa-4x text-warning mb-3"></i>
-                            <h5 class="fw-bold text-dark">لا توجد قصاصات جديدة مسجلة بتاريخ اليوم (${todayStr})</h5>
-                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض الأخبار السابقة.</p>
+                            <h5 class="fw-bold text-dark">لا توجد قصاصات جديدة صُدرت بتاريخ اليوم (${todayStr})</h5>
+                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض جميع القصاصات السابقة.</p>
                         </div>
                     </div>`;
                 document.getElementById("today-count").innerText = "0 قصاصة";
@@ -332,20 +329,21 @@
             renderGrid(data, "today-grid");
         }
 
-        // 2. جلب الأرشيف الكامل
+        // 2. جلب الأرشيف ترتيبه حسب تاريخ الصدور
         async function loadArchiveClippings() {
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
 
             if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
-                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY في كود HTML أولاً.</div>`;
+                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY أولاً.</div>`;
                 return;
             }
 
+            // ترتيب القصاصات بحسب تاريخ الصدور (DATE_FIELD)
             const { data, error } = await supabaseClient
                 .from('clippings')
                 .select('*')
-                .order('created_at', { ascending: false });
+                .order(DATE_FIELD, { ascending: false });
 
             if (error) {
                 archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-5">خطأ في الاتصال بقاعدة البيانات: ${error.message}</div>`;
@@ -375,7 +373,7 @@
             });
         }
 
-        // 3. محرك الفرز
+        // 3. محرك الفرز بناءً على تاريخ الصدور
         function applyArchiveFilters() {
             let filtered = [...allArchiveData];
 
@@ -396,10 +394,11 @@
             if (importanceValue) filtered = filtered.filter(item => item.importance === importanceValue);
             if (sourceValue) filtered = filtered.filter(item => item.source === sourceValue);
 
+            // الفرز على أساس تاريخ الصدور Act-Date
             if (sortValue === "newest") {
-                filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                filtered.sort((a, b) => new Date(b[DATE_FIELD]) - new Date(a[DATE_FIELD]));
             } else if (sortValue === "oldest") {
-                filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                filtered.sort((a, b) => new Date(a[DATE_FIELD]) - new Date(b[DATE_FIELD]));
             } else if (sortValue === "importance") {
                 filtered.sort((a, b) => (b.importance === "عالي" ? 1 : -1));
             } else if (sortValue === "source") {
@@ -412,7 +411,7 @@
             renderGrid(filtered, "archive-grid");
         }
 
-        // 4. بناء البطاقات
+        // 4. عرض تاريخ الصدور داخل البطاقة
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
@@ -427,7 +426,11 @@
                 return;
             }
 
-            container.innerHTML = items.map(item => `
+            container.innerHTML = items.map(item => {
+                // عرض تاريخ الصدور بحسب الحقل المحدد
+                const issueDate = item[DATE_FIELD] ? new Date(item[DATE_FIELD]).toLocaleDateString('ar-DZ') : 'غير محدد';
+
+                return `
                 <div class="col-md-6 col-lg-4">
                     <div class="card card-clipping p-4">
                         <div>
@@ -442,7 +445,7 @@
                             <hr class="my-3 opacity-10">
                             <div class="d-flex justify-content-between align-items-center small text-secondary mb-3">
                                 <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source}</span>
-                                <span><i class="fa-regular fa-calendar me-1"></i> ${new Date(item.created_at).toLocaleDateString('ar-DZ')}</span>
+                                <span><i class="fa-regular fa-calendar me-1"></i> الصدور: ${issueDate}</span>
                             </div>
                             <a href="${item.link}" target="_blank" class="btn btn-read-more w-100 text-decoration-none text-center">
                                 قراءة الخبر من المصدر <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
@@ -450,7 +453,7 @@
                         </div>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
     </script>
 </body>
