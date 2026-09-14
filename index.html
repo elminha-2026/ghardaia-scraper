@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المركز الإعلامي - قصاصات 2026</title>
+    <title>المركز الإعلامي - جمعية الشيخ أبي إسحاق للتراث</title>
     <!-- Bootstrap 5 RTL -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
-    <!-- Google Fonts -->
+    <!-- Google Fonts: Tajawal & Cairo -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Cairo:wght@600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -58,6 +58,27 @@
             border-radius: 50px;
             font-size: 0.9rem;
             display: inline-block;
+        }
+
+        .custom-nav-pills {
+            background: white;
+            padding: 8px;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .custom-nav-pills .nav-link {
+            color: var(--primary-emerald);
+            font-weight: 700;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .custom-nav-pills .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-emerald) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(27, 67, 50, 0.3);
         }
 
         .filter-card {
@@ -153,76 +174,102 @@
                 <img src="logo.png" alt="شعار جمعية الشيخ أبي إسحاق" class="association-logo" onerror="this.style.display='none'">
             </div>
             <span class="gold-badge mb-3"><i class="fa-solid fa-archway me-1"></i> وحدة الرصد والإعلام الرقمي</span>
-            <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية (سنة 2026 فقط)</h1>
+            <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية والإعلامية</h1>
             <p class="lead opacity-75 mb-0 fs-6">جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
         </div>
     </header>
 
     <div class="container my-4">
         
-        <!-- بطاقة الفرز والتصفية خاص بـ 2026 -->
-        <div class="filter-card mb-4">
-            <div class="row g-3 mb-2">
-                <div class="col-md-4">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-magnifying-glass me-1"></i> بحث بالنص</label>
-                    <input type="text" id="filter-search" class="form-control" placeholder="بحث في العنوان أو الملخص..." oninput="applyFilters()">
+        <ul class="nav nav-pills custom-nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fs-5" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
+                    <i class="fa-solid fa-calendar-day me-2 text-warning"></i> القصاصات الصادرة اليوم
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fs-5" id="archive-tab" data-bs-toggle="tab" data-bs-target="#archive-content" type="button" onclick="loadArchiveClippings()">
+                    <i class="fa-solid fa-boxes-stacked me-2"></i> الأرشيف الكامل والفرز
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabsContent">
+            
+            <div class="tab-pane fade show active" id="today-content" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> القصاصات الصادرة اليوم حصراً</h4>
+                    <span id="today-count" class="counter-badge">0 قصاصة</span>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-shapes me-1"></i> الموضوع</label>
-                    <select id="filter-category" class="form-select" onchange="applyFilters()">
-                        <option value="">كل الموضوعات</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-layer-group me-1"></i> الأهمية</label>
-                    <select id="filter-importance" class="form-select" onchange="applyFilters()">
-                        <option value="">الكل</option>
-                        <option value="عالي">عالي</option>
-                        <option value="عادي">عادي</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-newspaper me-1"></i> المصدر / الصحيفة</label>
-                    <select id="filter-source" class="form-select" onchange="applyFilters()">
-                        <option value="">كافة المصادر</option>
-                    </select>
-                </div>
+                <div id="today-grid" class="row g-4"></div>
             </div>
 
-            <div class="row g-3 border-top pt-2 mt-2">
-                <div class="col-md-3">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> تاريخ الصدور في 2026 (من)</label>
-                    <input type="date" id="filter-date-from" class="form-control" min="2026-01-01" max="2026-12-31" onchange="applyFilters()">
+            <div class="tab-pane fade" id="archive-content" role="tabpanel">
+                
+                <div class="filter-card mb-4">
+                    <div class="row g-3 mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-magnifying-glass me-1"></i> بحث بالنص</label>
+                            <input type="text" id="filter-search" class="form-control" placeholder="بحث في العنوان أو الملخص..." oninput="applyArchiveFilters()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-shapes me-1"></i> الموضوع</label>
+                            <select id="filter-category" class="form-select" onchange="applyArchiveFilters()">
+                                <option value="">كل الموضوعات</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-layer-group me-1"></i> الأهمية</label>
+                            <select id="filter-importance" class="form-select" onchange="applyArchiveFilters()">
+                                <option value="">الكل</option>
+                                <option value="عالي">عالي</option>
+                                <option value="عادي">عادي</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-newspaper me-1"></i> المصدر / الصحيفة</label>
+                            <select id="filter-source" class="form-select" onchange="applyArchiveFilters()">
+                                <option value="">كافة المصادر</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 border-top pt-2 mt-2">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> تاريخ الصدور (من)</label>
+                            <input type="date" id="filter-date-from" class="form-control" onchange="applyArchiveFilters()">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-plus me-1"></i> تاريخ الصدور (إلى)</label>
+                            <input type="date" id="filter-date-to" class="form-control" onchange="applyArchiveFilters()">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
+                            <select id="filter-sort" class="form-select" onchange="applyArchiveFilters()">
+                                <option value="newest_published">حسب تاريخ الصدور (الأحدث أولاً)</option>
+                                <option value="oldest_published">حسب تاريخ الصدور (الأقدَم أولاً)</option>
+                                <option value="importance">حسب الأهمية</option>
+                                <option value="source">أبجدياً حسب المصدر</option>
+                                <option value="title">أبجدياً حسب العنوان</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary w-100" onclick="resetArchiveFilters()">
+                                <i class="fa-solid fa-rotate me-1"></i> إعادة ضبط
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-plus me-1"></i> تاريخ الصدور في 2026 (إلى)</label>
-                    <input type="date" id="filter-date-to" class="form-control" min="2026-01-01" max="2026-12-31" onchange="applyFilters()">
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-vault text-success me-2"></i> جميع القصاصات الأرشيفية</h4>
+                    <span id="archive-count" class="counter-badge">0 قصاصة</span>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
-                    <select id="filter-sort" class="form-select" onchange="applyFilters()">
-                        <option value="newest_published">حسب التاريخ (الأحدث في 2026 أولاً)</option>
-                        <option value="oldest_published">حسب التاريخ (الأقدم في 2026 أولاً)</option>
-                        <option value="importance">حسب الأهمية</option>
-                        <option value="source">أبجدياً حسب المصدر</option>
-                        <option value="title">أبجدياً حسب العنوان</option>
-                    </select>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
-                        <i class="fa-solid fa-rotate me-1"></i> إعادة ضبط
-                    </button>
-                </div>
+
+                <div id="archive-grid" class="row g-4"></div>
             </div>
+
         </div>
-
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-newspaper text-success me-2"></i> قصاصات سنة 2026</h4>
-            <span id="clippings-count" class="counter-badge">0 قصاصة</span>
-        </div>
-
-        <div id="clippings-grid" class="row g-4"></div>
-
     </div>
 
     <!-- JS Scripts -->
@@ -231,10 +278,12 @@
     <script>
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
+
+        // 🟢 تحديد اسم العمود المعتمد في الجدول بدقة
         const DATE_FIELD = "published_date"; 
 
         let supabaseClient;
-        let data2026Only = [];
+        let allArchiveData = [];
 
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -243,55 +292,77 @@
         }
 
         document.addEventListener("DOMContentLoaded", () => {
-            loadOnly2026Clippings();
+            loadTodayClippings();
         });
 
-        // 🎯 دالة الاستعلام التي تجلب وتصفّي قصاصات سنة 2026 فقط من قاعدة البيانات مباشرة
-        async function loadOnly2026Clippings() {
-            const container = document.getElementById("clippings-grid");
-            container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div><p class="mt-2 text-muted">جاري تحميل قصاصات سنة 2026 فقط...</p></div>';
+        // 1. جلب قصاصات اليوم
+        async function loadTodayClippings() {
+            const todayContainer = document.getElementById("today-grid");
+            todayContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
 
             if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
-                container.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى ضبط مفاتيح SUPABASE_URL و SUPABASE_KEY أولاً.</div>`;
+                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى إدخال روابط SUPABASE_URL و SUPABASE_KEY الصحيحة.</div>`;
                 return;
             }
 
-            let all2026Rows = [];
-            let page = 0;
-            const pageSize = 1000;
-            let hasMore = true;
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayStr = `${year}-${month}-${day}`;
 
-            // جلب البيانات مع تطبيق تصفية السنة 2026 في السيرفر مباشر لسرعة الأداء
-            while (hasMore) {
-                const { data, error } = await supabaseClient
-                    .from('clippings')
-                    .select('*')
-                    .gte(DATE_FIELD, '2026-01-01T00:00:00.000Z')
-                    .lte(DATE_FIELD, '2026-12-31T23:59:59.999Z')
-                    .range(page * pageSize, (page + 1) * pageSize - 1)
-                    .order(DATE_FIELD, { ascending: false });
+            const { data, error } = await supabaseClient
+                .from('clippings')
+                .select('*')
+                .gte(DATE_FIELD, `${todayStr}T00:00:00.000Z`)
+                .lte(DATE_FIELD, `${todayStr}T23:59:59.999Z`)
+                .order(DATE_FIELD, { ascending: false });
 
-                if (error) {
-                    console.error("خطأ جلب البيانات:", error);
-                    container.innerHTML = `<div class="col-12 text-center text-danger py-4">تعذر جلب البيانات: ${error.message}</div>`;
-                    return;
-                }
-
-                if (data && data.length > 0) {
-                    all2026Rows = all2026Rows.concat(data);
-                    if (data.length < pageSize) {
-                        hasMore = false;
-                    } else {
-                        page++;
-                    }
-                } else {
-                    hasMore = false;
-                }
+            if (error) {
+                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">تعذر جلب البيانات: ${error.message}</div>`;
+                return;
             }
 
-            data2026Only = all2026Rows;
-            populateDropdownFilters(data2026Only);
-            applyFilters();
+            if (!data || data.length === 0) {
+                todayContainer.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <div class="p-5 bg-white rounded-4 shadow-sm">
+                            <i class="fa-regular fa-calendar-xmark fa-4x text-warning mb-3"></i>
+                            <h5 class="fw-bold text-dark">لا توجد قصاصات جديدة صُدرت بتاريخ اليوم (${todayStr})</h5>
+                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض القصاصات السابقة.</p>
+                        </div>
+                    </div>`;
+                document.getElementById("today-count").innerText = "0 قصاصة";
+                return;
+            }
+
+            document.getElementById("today-count").innerText = `${data.length} قصاصة`;
+            renderGrid(data, "today-grid");
+        }
+
+        // 2. جلب القصاصات الكاملة
+        async function loadArchiveClippings() {
+            const archiveContainer = document.getElementById("archive-grid");
+            archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
+
+            if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
+                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى إدخال روابط SUPABASE_URL و SUPABASE_KEY الصحيحة.</div>`;
+                return;
+            }
+
+            const { data, error } = await supabaseClient
+                .from('clippings')
+                .select('*')
+                .order(DATE_FIELD, { ascending: false });
+
+            if (error) {
+                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-5">خطأ في جلب البيانات: ${error.message}</div>`;
+                return;
+            }
+
+            allArchiveData = data;
+            populateDropdownFilters(data);
+            applyArchiveFilters();
         }
 
         function populateDropdownFilters(data) {
@@ -312,9 +383,9 @@
             });
         }
 
-        // التصفية والفرز لـ 2026
-        function applyFilters() {
-            let filtered = [...data2026Only];
+        // 3. التصفية والفرز
+        function applyArchiveFilters() {
+            let filtered = [...allArchiveData];
 
             const searchValue = document.getElementById("filter-search").value.toLowerCase().trim();
             const categoryValue = document.getElementById("filter-category").value;
@@ -363,11 +434,11 @@
                 filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ar'));
             }
 
-            document.getElementById("clippings-count").innerText = `${filtered.length} قصاصة (سنة 2026)`;
-            renderGrid(filtered, "clippings-grid");
+            document.getElementById("archive-count").innerText = `${filtered.length} قصاصة`;
+            renderGrid(filtered, "archive-grid");
         }
 
-        function resetFilters() {
+        function resetArchiveFilters() {
             document.getElementById("filter-search").value = "";
             document.getElementById("filter-category").value = "";
             document.getElementById("filter-importance").value = "";
@@ -375,10 +446,10 @@
             document.getElementById("filter-date-from").value = "";
             document.getElementById("filter-date-to").value = "";
             document.getElementById("filter-sort").value = "newest_published";
-            applyFilters();
+            applyArchiveFilters();
         }
 
-        // عرض القصاصات
+        // 4. بناء البطاقات
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
@@ -386,8 +457,8 @@
                 container.innerHTML = `
                     <div class="col-12 text-center py-5">
                         <div class="p-5 bg-white rounded-4 shadow-sm text-muted">
-                            <i class="fa-regular fa-calendar-xmark fa-3x mb-3 text-warning"></i>
-                            <h5 class="fw-bold">لم نجد أية قصاصات صادرة خلال عام 2026 تطابق بحثك.</h5>
+                            <i class="fa-solid fa-filter-circle-xmark fa-3x mb-3"></i>
+                            <h5 class="fw-bold">لم نجد أية نتائج تطابق المعايير المحددة.</h5>
                         </div>
                     </div>`;
                 return;
