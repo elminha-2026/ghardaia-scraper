@@ -3,11 +3,9 @@ name: Daily Clippings Scraper (2026 Only)
 on:
   schedule:
     # يعمل مرتين يومياً: الساعة 5:00 صباحاً و 5:00 مساءً بتوقيت الجزائر (UTC+1)
-    # المواعيد بالتوقيت العالمي الموحد (UTC): 04:00 و 16:00
     - cron: '0 4,16 * * *'
 
   workflow_dispatch:
-    # يتيح التشغيل اليدوي من واجهة GitHub Actions في أي وقت
     inputs:
       scrape_mode:
         description: 'اختر نطاق البحث'
@@ -15,8 +13,8 @@ on:
         default: 'recent_only'
         type: choice
         options:
-          - recent_only   # جلب القصاصات الحديثة فقط (الأخبار الجديدة)
-          - full_2026     # إعادة مسح وجلب كل قصاصات عام 2026 من بدايتها
+          - recent_only   # جلب القصاصات الحديثة فقط
+          - full_2026     # إعادة مسح وجلب كل قصاصات عام 2026
 
 permissions:
   contents: write
@@ -26,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. جلب كود المستودع
+      # 1. جلب الكود من المستودع
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -37,24 +35,29 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
-      # 3. تثبيت المتطلبات والمكتبات
+      # 3. عرض الملفات للتأكد من المجلد والملفات الموجودة (للتأكد)
+      - name: List Files in Workspace
+        run: |
+          echo "📂 محتويات المجلد الرئيسي:"
+          ls -la
+
+      # 4. تثبيت المتطلبات والمكتبات
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # 4. تحديد نمط التشغيل (جدولة مرتين يومياً أو تشغيل يدوي)
+      # 5. تحديد نمط التشغيل
       - name: Determine Scraping Strategy
         id: set-strategy
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "SCRAPE_MODE=${{ github.event.inputs.scrape_mode }}" >> $GITHUB_ENV
           else
-            # عند التشغيل المجدول مرتين يومياً، يكتفي بجلب المنشورات الحديثة
             echo "SCRAPE_MODE=recent_only" >> $GITHUB_ENV
           fi
 
-      # 5. تنفيذ سكريبت السحب بناءً على الخيار المحدد
+      # 6. البحث عن السكريبت وتشغيله تلقائياً
       - name: Run Scraper Script
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -62,19 +65,29 @@ jobs:
           TARGET_YEAR: "2026"
           TZ: "Africa/Algiers"
         run: |
+          # العثور على الملف أينما كان موقعه في المشروع
+          SCRIPTPATH=$(find . -maxdepth 2 -name "daily_scraper.py" -o -name "scraper.py" -o -name "main.py" | head -n 1)
+          
+          if [ -z "$SCRIPTPATH" ]; then
+            echo "❌ خطأ: لم يتم العثور على ملف البايثون! يرجى التأكد من اسم الملف وموقعه في المستودع."
+            exit 1
+          fi
+          
+          echo "✅ تم العثور على السكريبت في: $SCRIPTPATH"
+          
           if [ "$SCRAPE_MODE" == "full_2026" ]; then
-            echo "🚀 بدء البحث الشامل عن كافة قصاصات عام 2026 (من 2026-01-01 إلى الآن)..."
-            python daily_scraper.py --year 2026 --mode full_year --start-date 2026-01-01
+            echo "🚀 بدء البحث الشامل عن كافة قصاصات عام 2026..."
+            python $SCRIPTPATH --year 2026 --mode full_year --start-date 2026-01-01
           else
-            echo "🔄 بدء التحديث الدوري لقصاصات عام 2026 الجديدة (بتوقيت الجزائر)..."
-            python daily_scraper.py --year 2026 --mode recent_only --days-back 2
+            echo "🔄 بدء التحديث الدوري لقصاصات عام 2026 الجديدة..."
+            python $SCRIPTPATH --year 2026 --mode recent_only --days-back 2
           fi
 
-      # 6. حفظ التغييرات والدفع للمستودع (إذا كان السكريبت يحفظ ملفات محلية كـ JSON أو CSV)
+      # 7. حفظ التغييرات ودفعها
       - name: Commit & Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git diff-index --quiet HEAD || git commit -m "auto: تحديث دوري للقصاصات 2026 [skip ci]"
+          git diff-index --quiet HEAD || git commit -m "auto: تحديث دوري لقصاصات 2026 [skip ci]"
           git push
