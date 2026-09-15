@@ -1,2 +1,5 @@
-feedparser
-supabase
+python-dateutil>=2.8.2
+feedparser>=6.0.10
+supabase>=2.0.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
