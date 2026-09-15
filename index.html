@@ -276,13 +276,17 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        // ============================================================
+        // ⚙️ الإعدادات - استبدل القيمتين التاليتين ببياناتك الحقيقية
+        // ============================================================
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
 
         // 🟢 العمود المعتمد لتاريخ النشر
         const DATE_FIELD = "published_date"; 
+
         // 🟢 حجم كل دفعة عند الجلب (يجب أن يكون ≤ Max Rows في Supabase)
-        const PAGE_SIZE = 1000;
+        const PAGE_SIZE = 500;
 
         let supabaseClient;
         let allArchiveData = [];
@@ -297,30 +301,41 @@
             loadTodayClippings();
         });
 
+        // ============================================================
         // ✅ دالة مساعدة لجلب كل الصفوف مع ترقيم الصفحات
+        // ============================================================
         async function fetchAllRows(buildQuery, pageSize = PAGE_SIZE) {
             let allData = [];
             let from = 0;
+            let totalCount = null;
 
             while (true) {
-                const query = buildQuery().range(from, from + pageSize - 1);
-                const { data, error } = await query;
+                const { data, error, count } = await buildQuery().range(from, from + pageSize - 1);
 
                 if (error) throw error;
+
+                if (totalCount === null && typeof count === 'number') {
+                    totalCount = count;
+                    console.log(`📊 العدد الكلي في Supabase: ${totalCount}`);
+                }
+
                 if (!data || data.length === 0) break;
 
                 allData = allData.concat(data);
+                console.log(`✅ جُلب ${data.length} صفاً (بدءاً من ${from}). المجموع حتى الآن: ${allData.length}`);
 
-                // إذا كانت الدفعة أقل من حجم الصفحة، فقد وصلنا للنهاية
+                if (totalCount !== null && allData.length >= totalCount) break;
                 if (data.length < pageSize) break;
 
                 from += pageSize;
             }
 
-            return allData;
+            return { data: allData, totalCount };
         }
 
+        // ============================================================
         // 1. جلب قصاصات اليوم
+        // ============================================================
         async function loadTodayClippings() {
             const todayContainer = document.getElementById("today-grid");
             todayContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
@@ -338,14 +353,15 @@
 
             let data;
             try {
-                data = await fetchAllRows(() =>
+                const result = await fetchAllRows(() =>
                     supabaseClient
                         .from('clippings')
-                        .select('*')
+                        .select('*', { count: 'exact' })
                         .gte(DATE_FIELD, `${todayStr}T00:00:00.000Z`)
                         .lte(DATE_FIELD, `${todayStr}T23:59:59.999Z`)
                         .order(DATE_FIELD, { ascending: false })
                 );
+                data = result.data;
             } catch (error) {
                 todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">تعذر جلب البيانات: ${error.message}</div>`;
                 return;
@@ -368,7 +384,9 @@
             renderGrid(data, "today-grid");
         }
 
-        // 2. جلب القصاصات الكاملة (كل الأرشيف)
+        // ============================================================
+        // 2. جلب الأرشيف الكامل
+        // ============================================================
         async function loadArchiveClippings() {
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
@@ -378,17 +396,27 @@
                 return;
             }
 
-            let data;
+            let data, totalCount;
             try {
-                data = await fetchAllRows(() =>
+                const result = await fetchAllRows(() =>
                     supabaseClient
                         .from('clippings')
-                        .select('*')
+                        .select('*', { count: 'exact' })
                         .order(DATE_FIELD, { ascending: false })
+                        .order('id', { ascending: false })
                 );
+                data = result.data;
+                totalCount = result.totalCount;
             } catch (error) {
                 archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-5">خطأ في جلب البيانات: ${error.message}</div>`;
                 return;
+            }
+
+            console.log(`🎯 الأرشيف: تم جلب ${data.length} من أصل ${totalCount ?? '؟'}`);
+
+            if (totalCount !== null && data.length < totalCount) {
+                console.warn(`⚠️ تحذير: لم يتم جلب كل الصفوف! المتوقع ${totalCount} لكن وصل ${data.length}.`);
+                console.warn(`   الأسباب المحتملة: Max Rows في Supabase، سياسات RLS، أو مشكلة في الشبكة.`);
             }
 
             allArchiveData = data;
@@ -414,7 +442,9 @@
             });
         }
 
+        // ============================================================
         // 3. التصفية والفرز
+        // ============================================================
         function applyArchiveFilters() {
             let filtered = [...allArchiveData];
 
@@ -458,7 +488,6 @@
             } else if (sortValue === "oldest_published") {
                 filtered.sort((a, b) => new Date(a[DATE_FIELD] || 0) - new Date(b[DATE_FIELD] || 0));
             } else if (sortValue === "importance") {
-                // ترتيب حسب الأهمية: عالي أولاً، ثم عادي (مع الحفاظ على الترتيب الزمني الفرعي)
                 filtered.sort((a, b) => {
                     const aImp = a.importance === "عالي" ? 1 : 0;
                     const bImp = b.importance === "عالي" ? 1 : 0;
@@ -486,7 +515,9 @@
             applyArchiveFilters();
         }
 
+        // ============================================================
         // 4. بناء البطاقات
+        // ============================================================
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
