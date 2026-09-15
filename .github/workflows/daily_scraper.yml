@@ -1,211 +1,93 @@
-import os
-import sys
-import time
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
-from supabase import create_client, Client
+name: Daily Clippings Scraper (2026 Only)
 
-# ==========================================
-# 1. إعدادات البيئة وقاعدة البيانات Supabase
-# ==========================================
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+on:
+  schedule:
+    # يعمل مرتين يومياً: الساعة 5:00 صباحاً و 5:00 مساءً بتوقيت الجزائر (UTC+1)
+    - cron: '0 4,16 * * *'
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ خطأ: لم يتم العثور على متغيرات البيئة SUPABASE_URL و SUPABASE_KEY")
-    sys.exit(1)
+  workflow_dispatch:
+    inputs:
+      scrape_mode:
+        description: 'اختر نطاق البحث'
+        required: true
+        default: 'recent_only'
+        type: choice
+        options:
+          - recent_only   # جلب القصاصات الحديثة فقط
+          - full_2026     # إعادة مسح وجلب كل قصاصات عام 2026
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-TABLE_NAME = "clippings"
+permissions:
+  contents: write
 
-# نطاق التاريخ الخاص بسنة 2026
-YEAR_START = datetime(2026, 1, 1)
-YEAR_END = datetime(2026, 12, 31, 23, 59, 59)
+jobs:
+  scrape-and-update:
+    runs-on: ubuntu-latest
 
-# ==========================================
-# 2. دالة جلب كافة الروابط المسجلة (لعدم التكرار)
-# ==========================================
-def get_existing_links():
-    """جلب كل الروابط المسجلة لسنة 2026 في Supabase بدون تقييد الـ 100"""
-    existing_links = set()
-    start = 0
-    page_size = 1000
+    steps:
+      # 1. جلب الكود من المستودع
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    print("🔄 جلب الأرشيف الحالي لتفادي تكرار القصاصات...")
+      # 2. إعداد بيئة Python
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
 
-    while True:
-        try:
-            res = supabase.table(TABLE_NAME) \
-                .select('link') \
-                .gte('published_date', YEAR_START.isoformat()) \
-                .lte('published_date', YEAR_END.isoformat()) \
-                .range(start, start + page_size - 1) \
-                .execute()
+      # 3. عرض الملفات للتأكد من المجلد والملفات الموجودة (للتأكد)
+      - name: List Files in Workspace
+        run: |
+          echo "📂 محتويات المجلد الرئيسي:"
+          ls -la
 
-            data = res.data
-            if not data:
-                break
+      # 4. تثبيت المتطلبات والمكتبات
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-            for row in data:
-                if row.get('link'):
-                    existing_links.add(row['link'])
+      # 5. تحديد نمط التشغيل
+      - name: Determine Scraping Strategy
+        id: set-strategy
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "SCRAPE_MODE=${{ github.event.inputs.scrape_mode }}" >> $GITHUB_ENV
+          else
+            echo "SCRAPE_MODE=recent_only" >> $GITHUB_ENV
+          fi
 
-            if len(data) < page_size:
-                break
+      # 6. البحث عن السكريبت وتشغيله تلقائياً
+      - name: Run Scraper Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TARGET_YEAR: "2026"
+          TZ: "Africa/Algiers"
+        run: |
+          # العثور على الملف أينما كان موقعه في المشروع
+          SCRIPTPATH=$(find . -maxdepth 2 -name "daily_scraper.py" -o -name "scraper.py" -o -name "main.py" | head -n 1)
+          
+          if [ -z "$SCRIPTPATH" ]; then
+            echo "❌ خطأ: لم يتم العثور على ملف البايثون! يرجى التأكد من اسم الملف وموقعه في المستودع."
+            exit 1
+          fi
+          
+          echo "✅ تم العثور على السكريبت في: $SCRIPTPATH"
+          
+          if [ "$SCRAPE_MODE" == "full_2026" ]; then
+            echo "🚀 بدء البحث الشامل عن كافة قصاصات عام 2026..."
+            python $SCRIPTPATH --year 2026 --mode full_year --start-date 2026-01-01
+          else
+            echo "🔄 بدء التحديث الدوري لقصاصات عام 2026 الجديدة..."
+            python $SCRIPTPATH --year 2026 --mode recent_only --days-back 2
+          fi
 
-            start += page_size
-        except Exception as e:
-            print(f"⚠️ خطأ أثناء جلب الروابط المسجلة: {e}")
-            break
-
-    print(f"📦 تم العثور على {len(existing_links)} قصاصة مسجلة حالياً لعام 2026.")
-    return existing_links
-
-# ==========================================
-# 3. محرك السحب العميق مع دعم التنقل بين الصفحات
-# ==========================================
-def fetch_page_content(url, headers):
-    """دالة مساعدة لإجراء الطلبات وتفادي الحظر"""
-    try:
-        response = requests.get(url, headers=headers, timeout=15)
-        if response.status_code == 200:
-            return BeautifulSoup(response.text, 'html.parser')
-        else:
-            print(f"⚠️ استجابة السيرفر غير ناجحة ({response.status_code}) للرابط: {url}")
-            return None
-    except Exception as e:
-        print(f"❌ خطأ أثناء الاتصال بالرابط {url}: {e}")
-        return None
-
-def scrape_all_2026_news():
-    """سحب كافة قصاصات 2026 والتنقل عبر الصفحات"""
-    all_scraped_items = []
-    
-    # ⚠️ يمكنك تغيير/إضافة روابط المواقع المستهدفة هنا
-    target_sources = [
-        {
-            "source_name": "جريدة الخبر",
-            "search_url": "https://www.elkhabar.com/search/?q=غرداية",
-            "domain": "https://www.elkhabar.com"
-        }
-    ]
-
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'ar,en;q=0.9'
-    }
-
-    print("🔍 بدء عملية السحب الشامل لقصاصات 2026...")
-
-    for target in target_sources:
-        page = 1
-        max_pages = 50  # الحد الأقصى للصفحات المسحوبة لتجاوز تقييد 100 عنصر
-        stop_for_source = False
-
-        print(f"\n📰 بدء سحب المصدر: {target['source_name']}")
-
-        while page <= max_pages and not stop_for_source:
-            # صياغة رابط الصفحة الحالية (Pagination)
-            page_url = f"{target['search_url']}&page={page}"
-            print(f"  📄 سحب الصفحة {page}: {page_url}")
-
-            soup = fetch_page_content(page_url, headers)
-            if not soup:
-                break
-
-            # ⚠️ قم بتعديل وسوم البناء (Tags) بحسب بنية الموقع المستهدف
-            articles = soup.find_all('article') or soup.find_all('div', class_='news-item')
-
-            if not articles:
-                print(f"ℹ️ لا توجد نتائج إضافية في الصفحة {page}.")
-                break
-
-            items_in_page = 0
-
-            for article in articles:
-                title_elem = article.find('h2') or article.find('h3') or article.find('a')
-                link_elem = article.find('a')
-
-                if not title_elem or not link_elem:
-                    continue
-
-                title = title_elem.get_text(strip=True)
-                link = link_elem.get('href')
-
-                if link and not link.startswith('http'):
-                    link = target['domain'] + link
-
-                # تاريخ نشر خبر افتراضي ضمن 2026 (أو استخراجه من قوالب المواقع)
-                pub_date = datetime(2026, 2, 10, 10, 0, 0)
-
-                # التأكد من وقوع الخبر داخل نطاق 2026
-                if pub_date < YEAR_START:
-                    print("🛑 الوصول لقصاصات أقدم من عام 2026. إيقاف السحب لهذا المصدر.")
-                    stop_for_source = True
-                    break
-
-                if YEAR_START <= pub_date <= YEAR_END:
-                    all_scraped_items.append({
-                        "title": title,
-                        "summary": title,
-                        "source": target['source_name'],
-                        "category": "أخبار عامة",
-                        "importance": "عادي",
-                        "published_date": pub_date.isoformat(),
-                        "link": link
-                    })
-                    items_in_page += 1
-
-            print(f"     ✅ تم استخراج {items_in_page} قصاصة من الصفحة {page}")
-
-            page += 1
-            time.sleep(1.2)  # توقف مؤقت لمنع حظر السكريبت من السيرفر
-
-    print(f"\n🎯 إجمالي القصاصات المستخرجة من العملية: {len(all_scraped_items)}")
-    return all_scraped_items
-
-# ==========================================
-# 4. رفع البيانات بدفعات مجزأة إلى Supabase
-# ==========================================
-def save_items_in_batches(items, batch_size=100):
-    """رفع القصاصات الجديدة على دفعات لتجنب حدود طلبات Supabase"""
-    if not items:
-        print("ℹ️ لا توجد قصاصات جديدة لرفعها.")
-        return
-
-    print(f"\n💾 جاري إرسال {len(items)} قصاصة جديدة إلى Supabase...")
-
-    for i in range(0, len(items), batch_size):
-        batch = items[i:i + batch_size]
-        try:
-            supabase.table(TABLE_NAME).insert(batch).execute()
-            print(f"  ✅ تم رفع الدفعة {i // batch_size + 1} بنجاح ({len(batch)} قصاصة)")
-        except Exception as e:
-            print(f"  ❌ خطأ في رفع الدفعة {i // batch_size + 1}: {e}")
-
-# ==========================================
-# 5. نقطة التشغيل الرئيسية
-# ==========================================
-def main():
-    print("==================================================")
-    print(" 🚀 بدء تشغيل سكريبت الرصد الصحفي (سنة 2026)")
-    print("==================================================")
-
-    # 1. جلب الروابط المسجلة مسبقاً
-    existing_links = get_existing_links()
-
-    # 2. سحب القصاصات مع التنقل بين الصفحات
-    scraped_items = scrape_all_2026_news()
-
-    # 3. تصفية العناصر المكررة
-    new_items = [item for item in scraped_items if item['link'] not in existing_links]
-    print(f"\n✨ عدد القصاصات الجديدة الشاملة (غير المكررة): {len(new_items)}")
-
-    # 4. حفظ البيانات في Supabase
-    save_items_in_batches(new_items)
-
-    print("\n🎉 انتهت عملية التجميع والتحديث بنجاح!")
-
-if __name__ == "__main__":
-    main()
+      # 7. حفظ التغييرات ودفعها
+      - name: Commit & Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff-index --quiet HEAD || git commit -m "auto: تحديث دوري لقصاصات 2026 [skip ci]"
+          git push
