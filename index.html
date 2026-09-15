@@ -12,8 +12,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Chart.js للرسوم البيانية -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         :root {
@@ -29,13 +27,6 @@
             background-color: var(--bg-light);
             font-family: 'Tajawal', sans-serif;
             color: #2b2b2b;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-
-        .main-content {
-            flex: 1;
         }
 
         .hero-header {
@@ -173,190 +164,113 @@
             padding: 0.4rem 1rem;
             border-radius: 50px;
         }
-
-        /* تذييل الصفحة - حقوق النشر */
-        footer {
-            background: var(--primary-dark);
-            color: white;
-            border-top: 3px solid var(--accent-gold);
-            padding: 1.5rem 0;
-            margin-top: auto;
-        }
     </style>
 </head>
 <body>
 
-    <div class="main-content">
-        <header class="hero-header text-center">
-            <div class="container">
-                <div class="mb-3">
-                    <img src="logo.png" alt="شعار جمعية الشيخ أبي إسحاق" class="association-logo" onerror="this.style.display='none'">
-                </div>
-                <span class="gold-badge mb-3"><i class="fa-solid fa-archway me-1"></i> وحدة الرصد والإعلام الرقمي</span>
-                <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية والإعلامية</h1>
-                <p class="lead opacity-75 mb-0 fs-6">جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
+    <header class="hero-header text-center">
+        <div class="container">
+            <div class="mb-3">
+                <img src="logo.png" alt="شعار جمعية الشيخ أبي إسحاق" class="association-logo" onerror="this.style.display='none'">
             </div>
-        </header>
+            <span class="gold-badge mb-3"><i class="fa-solid fa-archway me-1"></i> وحدة الرصد والإعلام الرقمي</span>
+            <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية والإعلامية</h1>
+            <p class="lead opacity-75 mb-0 fs-6">جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
+        </div>
+    </header>
 
-        <div class="container my-4">
+    <div class="container my-4">
+        
+        <ul class="nav nav-pills custom-nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fs-5" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
+                    <i class="fa-solid fa-calendar-day me-2 text-warning"></i> القصاصات الصادرة اليوم
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fs-5" id="archive-tab" data-bs-toggle="tab" data-bs-target="#archive-content" type="button" onclick="loadArchiveClippings()">
+                    <i class="fa-solid fa-boxes-stacked me-2"></i> الأرشيف الكامل والفرز
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabsContent">
             
-            <ul class="nav nav-pills custom-nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active fs-5" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
-                        <i class="fa-solid fa-calendar-day me-2 text-warning"></i> القصاصات الصادرة اليوم
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fs-5" id="archive-tab" data-bs-toggle="tab" data-bs-target="#archive-content" type="button" onclick="loadArchiveClippings()">
-                        <i class="fa-solid fa-boxes-stacked me-2"></i> الأرشيف الكامل والفرز
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fs-5" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics-content" type="button" onclick="loadAnalyticsData()">
-                        <i class="fa-solid fa-chart-pie me-2 text-info"></i> تحليل المعلومات والإحصائيات
-                    </button>
-                </li>
-            </ul>
-
-            <div class="tab-content" id="mainTabsContent">
-                
-                <!-- تبويب اليوم -->
-                <div class="tab-pane fade show active" id="today-content" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> القصاصات الصادرة اليوم حصراً</h4>
-                        <span id="today-count" class="counter-badge">0 قصاصة</span>
-                    </div>
-                    <div id="today-grid" class="row g-4"></div>
+            <div class="tab-pane fade show active" id="today-content" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> القصاصات الصادرة اليوم حصراً</h4>
+                    <span id="today-count" class="counter-badge">0 قصاصة</span>
                 </div>
-
-                <!-- تبويب الأرشيف -->
-                <div class="tab-pane fade" id="archive-content" role="tabpanel">
-                    
-                    <div class="filter-card mb-4">
-                        <div class="row g-3 mb-2">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-magnifying-glass me-1"></i> بحث بالنص</label>
-                                <input type="text" id="filter-search" class="form-control" placeholder="بحث في العنوان أو الملخص..." oninput="applyArchiveFilters()">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-shapes me-1"></i> الموضوع</label>
-                                <select id="filter-category" class="form-select" onchange="applyArchiveFilters()">
-                                    <option value="">كل الموضوعات</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-layer-group me-1"></i> الأهمية</label>
-                                <select id="filter-importance" class="form-select" onchange="applyArchiveFilters()">
-                                    <option value="">الكل</option>
-                                    <option value="عالي">عالي</option>
-                                    <option value="عادي">عادي</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-newspaper me-1"></i> المصدر / الصحيفة</label>
-                                <select id="filter-source" class="form-select" onchange="applyArchiveFilters()">
-                                    <option value="">كافة المصادر</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="row g-3 border-top pt-2 mt-2">
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> تاريخ الصدور (من)</label>
-                                <input type="date" id="filter-date-from" class="form-control" onchange="applyArchiveFilters()">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-plus me-1"></i> تاريخ الصدور (إلى)</label>
-                                <input type="date" id="filter-date-to" class="form-control" onchange="applyArchiveFilters()">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
-                                <select id="filter-sort" class="form-select" onchange="applyArchiveFilters()">
-                                    <option value="newest_published">حسب تاريخ الصدور (الأحدث أولاً)</option>
-                                    <option value="oldest_published">حسب تاريخ الصدور (الأقدَم أولاً)</option>
-                                    <option value="importance">حسب الأهمية</option>
-                                    <option value="source">أبجدياً حسب المصدر</option>
-                                    <option value="title">أبجدياً حسب العنوان</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button class="btn btn-outline-secondary w-100" onclick="resetArchiveFilters()">
-                                    <i class="fa-solid fa-rotate me-1"></i> إعادة ضبط
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-vault text-success me-2"></i> جميع القصاصات الأرشيفية</h4>
-                        <span id="archive-count" class="counter-badge">0 قصاصة</span>
-                    </div>
-
-                    <div id="archive-grid" class="row g-4"></div>
-                </div>
-
-                <!-- تبويب تحليل المعلومات والإحصائيات -->
-                <div class="tab-pane fade" id="analytics-content" role="tabpanel">
-                    <div class="row g-4 mb-4 text-center">
-                        <div class="col-md-4">
-                            <div class="filter-card">
-                                <span class="text-muted small fw-bold">إجمالي القصاصات</span>
-                                <h2 class="fw-bold text-dark mt-2 mb-0" id="stat-total-count">0</h2>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="filter-card">
-                                <span class="text-muted small fw-bold">قصاصات عالية الأهمية</span>
-                                <h2 class="fw-bold text-danger mt-2 mb-0" id="stat-high-count">0</h2>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="filter-card">
-                                <span class="text-muted small fw-bold">عدد المصادر</span>
-                                <h2 class="fw-bold text-success mt-2 mb-0" id="stat-sources-count">0</h2>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-4">
-                        <div class="col-md-6">
-                            <div class="filter-card">
-                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-pie me-2 text-success"></i> التوزيع حسب الموضوع</h5>
-                                <canvas id="chart-category" style="max-height: 280px;"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="filter-card">
-                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-doughnut me-2 text-danger"></i> التوزيع حسب الأهمية</h5>
-                                <canvas id="chart-importance" style="max-height: 280px;"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="filter-card">
-                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-bar me-2 text-warning"></i> أبرز المصادر الإعلامية</h5>
-                                <canvas id="chart-source" style="max-height: 280px;"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="filter-card">
-                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-line me-2 text-primary"></i> التوزيع الزمني للقصاصات</h5>
-                                <canvas id="chart-date" style="max-height: 280px;"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                <div id="today-grid" class="row g-4"></div>
             </div>
+
+            <div class="tab-pane fade" id="archive-content" role="tabpanel">
+                
+                <div class="filter-card mb-4">
+                    <div class="row g-3 mb-2">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-magnifying-glass me-1"></i> بحث بالنص</label>
+                            <input type="text" id="filter-search" class="form-control" placeholder="بحث في العنوان أو الملخص..." oninput="applyArchiveFilters()">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-shapes me-1"></i> الموضوع</label>
+                            <select id="filter-category" class="form-select" onchange="applyArchiveFilters()">
+                                <option value="">كل الموضوعات</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-layer-group me-1"></i> الأهمية</label>
+                            <select id="filter-importance" class="form-select" onchange="applyArchiveFilters()">
+                                <option value="">الكل</option>
+                                <option value="عالي">عالي</option>
+                                <option value="عادي">عادي</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-newspaper me-1"></i> المصدر / الصحيفة</label>
+                            <select id="filter-source" class="form-select" onchange="applyArchiveFilters()">
+                                <option value="">كافة المصادر</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 border-top pt-2 mt-2">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> تاريخ الصدور (من)</label>
+                            <input type="date" id="filter-date-from" class="form-control" onchange="applyArchiveFilters()">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-plus me-1"></i> تاريخ الصدور (إلى)</label>
+                            <input type="date" id="filter-date-to" class="form-control" onchange="applyArchiveFilters()">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
+                            <select id="filter-sort" class="form-select" onchange="applyArchiveFilters()">
+                                <option value="newest_published">حسب تاريخ الصدور (الأحدث أولاً)</option>
+                                <option value="oldest_published">حسب تاريخ الصدور (الأقدَم أولاً)</option>
+                                <option value="importance">حسب الأهمية</option>
+                                <option value="source">أبجدياً حسب المصدر</option>
+                                <option value="title">أبجدياً حسب العنوان</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button class="btn btn-outline-secondary w-100" onclick="resetArchiveFilters()">
+                                <i class="fa-solid fa-rotate me-1"></i> إعادة ضبط
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-vault text-success me-2"></i> جميع القصاصات الأرشيفية</h4>
+                    <span id="archive-count" class="counter-badge">0 قصاصة</span>
+                </div>
+
+                <div id="archive-grid" class="row g-4"></div>
+            </div>
+
         </div>
     </div>
-
-    <!-- تذييل الصفحة مع حفظ الحقوق -->
-    <footer class="text-center">
-        <div class="container">
-            <p class="mb-0 fw-bold">جميع الحقوق محفوظة © جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
-            <small class="opacity-75">وحدة الرصد والإعلام الرقمي</small>
-        </div>
-    </footer>
 
     <!-- JS Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -376,9 +290,6 @@
 
         let supabaseClient;
         let allArchiveData = [];
-
-        // متغيرات المخططات البيانية
-        let chartCategoryInst, chartImportanceInst, chartSourceInst, chartDateInst;
 
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -477,8 +388,6 @@
         // 2. جلب الأرشيف الكامل
         // ============================================================
         async function loadArchiveClippings() {
-            if (allArchiveData.length > 0) return; // تم الجلب مسبقاً
-
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
 
@@ -504,6 +413,11 @@
             }
 
             console.log(`🎯 الأرشيف: تم جلب ${data.length} من أصل ${totalCount ?? '؟'}`);
+
+            if (totalCount !== null && data.length < totalCount) {
+                console.warn(`⚠️ تحذير: لم يتم جلب كل الصفوف! المتوقع ${totalCount} لكن وصل ${data.length}.`);
+                console.warn(`   الأسباب المحتملة: Max Rows في Supabase، سياسات RLS، أو مشكلة في الشبكة.`);
+            }
 
             allArchiveData = data;
             populateDropdownFilters(data);
@@ -645,93 +559,6 @@
                     </div>
                 </div>
             `}).join('');
-        }
-
-        // ============================================================
-        // 5. تحليل البيانات والرسوم البيانية
-        // ============================================================
-        async function loadAnalyticsData() {
-            if (allArchiveData.length === 0) {
-                await loadArchiveClippings();
-            }
-
-            document.getElementById("stat-total-count").innerText = allArchiveData.length;
-            document.getElementById("stat-high-count").innerText = allArchiveData.filter(i => i.importance === "عالي").length;
-            document.getElementById("stat-sources-count").innerText = new Set(allArchiveData.map(i => i.source).filter(Boolean)).size;
-
-            const categories = {}, importance = {}, sources = {}, dates = {};
-
-            allArchiveData.forEach(item => {
-                const cat = item.category || 'عام';
-                categories[cat] = (categories[cat] || 0) + 1;
-
-                const imp = item.importance || 'عادي';
-                importance[imp] = (importance[imp] || 0) + 1;
-
-                const src = item.source || 'غير محدد';
-                sources[src] = (sources[src] || 0) + 1;
-
-                if (item[DATE_FIELD]) {
-                    const monthKey = item[DATE_FIELD].substring(0, 7);
-                    dates[monthKey] = (dates[monthKey] || 0) + 1;
-                }
-            });
-
-            if (chartCategoryInst) chartCategoryInst.destroy();
-            if (chartImportanceInst) chartImportanceInst.destroy();
-            if (chartSourceInst) chartSourceInst.destroy();
-            if (chartDateInst) chartDateInst.destroy();
-
-            chartCategoryInst = new Chart(document.getElementById('chart-category'), {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(categories),
-                    datasets: [{
-                        data: Object.values(categories),
-                        backgroundColor: ['#1b4332', '#d4af37', '#2d6a4f', '#52b788', '#b7e4c7', '#081c15']
-                    }]
-                }
-            });
-
-            chartImportanceInst = new Chart(document.getElementById('chart-importance'), {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(importance),
-                    datasets: [{
-                        data: Object.values(importance),
-                        backgroundColor: ['#dc3545', '#198754']
-                    }]
-                }
-            });
-
-            chartSourceInst = new Chart(document.getElementById('chart-source'), {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(sources),
-                    datasets: [{
-                        label: 'عدد القصاصات',
-                        data: Object.values(sources),
-                        backgroundColor: '#d4af37'
-                    }]
-                },
-                options: { plugins: { legend: { display: false } } }
-            });
-
-            const sortedDateKeys = Object.keys(dates).sort();
-            chartDateInst = new Chart(document.getElementById('chart-date'), {
-                type: 'line',
-                data: {
-                    labels: sortedDateKeys,
-                    datasets: [{
-                        label: 'عدد القصاصات',
-                        data: sortedDateKeys.map(k => dates[k]),
-                        borderColor: '#0f2d22',
-                        backgroundColor: 'rgba(15, 45, 34, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }]
-                }
-            });
         }
     </script>
 </body>
