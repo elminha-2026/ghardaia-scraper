@@ -164,21 +164,6 @@
             padding: 0.4rem 1rem;
             border-radius: 50px;
         }
-
-        /* تنسيقات أزرار التنقل بين الصفحات Pagination */
-        .pagination .page-item .page-link {
-            color: var(--primary-emerald);
-            font-weight: bold;
-            border-radius: 8px;
-            margin: 0 3px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .pagination .page-item.active .page-link {
-            background-color: var(--primary-emerald);
-            border-color: var(--primary-emerald);
-            color: white;
-        }
     </style>
 </head>
 <body>
@@ -195,7 +180,7 @@
     </header>
 
     <div class="container my-4">
-
+        
         <ul class="nav nav-pills custom-nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active fs-5" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
@@ -210,7 +195,7 @@
         </ul>
 
         <div class="tab-content" id="mainTabsContent">
-
+            
             <div class="tab-pane fade show active" id="today-content" role="tabpanel">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> القصاصات الصادرة اليوم حصراً</h4>
@@ -220,7 +205,7 @@
             </div>
 
             <div class="tab-pane fade" id="archive-content" role="tabpanel">
-
+                
                 <div class="filter-card mb-4">
                     <div class="row g-3 mb-2">
                         <div class="col-md-4">
@@ -281,11 +266,7 @@
                     <span id="archive-count" class="counter-badge">0 قصاصة</span>
                 </div>
 
-                <div id="archive-grid" class="row g-4 mb-4"></div>
-
-                <!-- شريط التنقل بين الصفحات (Pagination) -->
-                <nav aria-label="Page navigation" id="pagination-container" class="d-flex justify-content-center my-4"></nav>
-
+                <div id="archive-grid" class="row g-4"></div>
             </div>
 
         </div>
@@ -293,20 +274,18 @@
 
     <!-- JS Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
+    
     <script>
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
 
+        // 🟢 العمود المعتمد لتاريخ النشر
         const DATE_FIELD = "published_date"; 
+        // 🟢 حجم كل دفعة عند الجلب (يجب أن يكون ≤ Max Rows في Supabase)
+        const PAGE_SIZE = 1000;
 
         let supabaseClient;
         let allArchiveData = [];
-        let filteredArchiveData = [];
-
-        // متغيرات التحكم بالصفحات (Pagination)
-        let currentPage = 1;
-        const itemsPerPage = 12; // عدد البطاقات لكل صفحة
 
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -317,6 +296,29 @@
         document.addEventListener("DOMContentLoaded", () => {
             loadTodayClippings();
         });
+
+        // ✅ دالة مساعدة لجلب كل الصفوف مع ترقيم الصفحات
+        async function fetchAllRows(buildQuery, pageSize = PAGE_SIZE) {
+            let allData = [];
+            let from = 0;
+
+            while (true) {
+                const query = buildQuery().range(from, from + pageSize - 1);
+                const { data, error } = await query;
+
+                if (error) throw error;
+                if (!data || data.length === 0) break;
+
+                allData = allData.concat(data);
+
+                // إذا كانت الدفعة أقل من حجم الصفحة، فقد وصلنا للنهاية
+                if (data.length < pageSize) break;
+
+                from += pageSize;
+            }
+
+            return allData;
+        }
 
         // 1. جلب قصاصات اليوم
         async function loadTodayClippings() {
@@ -334,14 +336,17 @@
             const day = String(now.getDate()).padStart(2, '0');
             const todayStr = `${year}-${month}-${day}`;
 
-            const { data, error } = await supabaseClient
-                .from('clippings')
-                .select('*')
-                .gte(DATE_FIELD, `${todayStr}T00:00:00.000Z`)
-                .lte(DATE_FIELD, `${todayStr}T23:59:59.999Z`)
-                .order(DATE_FIELD, { ascending: false }); // ترتيب من الأحدث للأقدم
-
-            if (error) {
+            let data;
+            try {
+                data = await fetchAllRows(() =>
+                    supabaseClient
+                        .from('clippings')
+                        .select('*')
+                        .gte(DATE_FIELD, `${todayStr}T00:00:00.000Z`)
+                        .lte(DATE_FIELD, `${todayStr}T23:59:59.999Z`)
+                        .order(DATE_FIELD, { ascending: false })
+                );
+            } catch (error) {
                 todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">تعذر جلب البيانات: ${error.message}</div>`;
                 return;
             }
@@ -363,7 +368,7 @@
             renderGrid(data, "today-grid");
         }
 
-        // 2. جلب الأرشيف الكامل بدون التقيد بحد الـ 100
+        // 2. جلب القصاصات الكاملة (كل الأرشيف)
         async function loadArchiveClippings() {
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
@@ -373,13 +378,15 @@
                 return;
             }
 
-            // جلب البيانات مرتبة من الأحدث إلى الأقدم تلقائياً
-            const { data, error } = await supabaseClient
-                .from('clippings')
-                .select('*')
-                .order(DATE_FIELD, { ascending: false });
-
-            if (error) {
+            let data;
+            try {
+                data = await fetchAllRows(() =>
+                    supabaseClient
+                        .from('clippings')
+                        .select('*')
+                        .order(DATE_FIELD, { ascending: false })
+                );
+            } catch (error) {
                 archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-5">خطأ في جلب البيانات: ${error.message}</div>`;
                 return;
             }
@@ -446,93 +453,26 @@
                 });
             }
 
-            // تطبيق قواعد الفرز
             if (sortValue === "newest_published") {
                 filtered.sort((a, b) => new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0));
             } else if (sortValue === "oldest_published") {
                 filtered.sort((a, b) => new Date(a[DATE_FIELD] || 0) - new Date(b[DATE_FIELD] || 0));
             } else if (sortValue === "importance") {
-                filtered.sort((a, b) => (b.importance === "عالي" ? 1 : -1));
+                // ترتيب حسب الأهمية: عالي أولاً، ثم عادي (مع الحفاظ على الترتيب الزمني الفرعي)
+                filtered.sort((a, b) => {
+                    const aImp = a.importance === "عالي" ? 1 : 0;
+                    const bImp = b.importance === "عالي" ? 1 : 0;
+                    if (aImp !== bImp) return bImp - aImp;
+                    return new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0);
+                });
             } else if (sortValue === "source") {
                 filtered.sort((a, b) => (a.source || '').localeCompare(b.source || '', 'ar'));
             } else if (sortValue === "title") {
                 filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ar'));
             }
 
-            filteredArchiveData = filtered;
             document.getElementById("archive-count").innerText = `${filtered.length} قصاصة`;
-            
-            // إعادة التوجيه للصفحة الأولى عند كل تصفية جديدة
-            currentPage = 1;
-            renderPaginatedArchive();
-        }
-
-        // عرض بيانات الصفحة الحالية ومحاذاة الفهرسة
-        function renderPaginatedArchive() {
-            const startIndex = (currentPage - 1) * itemsPerPage;
-            const endIndex = startIndex + itemsPerPage;
-            const pageData = filteredArchiveData.slice(startIndex, endIndex);
-
-            renderGrid(pageData, "archive-grid");
-            renderPaginationControls(filteredArchiveData.length);
-        }
-
-        // بناء عناصر تحكم التنقل بين الصفحات (Pagination Controls)
-        function renderPaginationControls(totalItems) {
-            const totalPages = Math.ceil(totalItems / itemsPerPage);
-            const container = document.getElementById("pagination-container");
-
-            if (totalPages <= 1) {
-                container.innerHTML = "";
-                return;
-            }
-
-            let html = `<ul class="pagination pagination-md mb-0">`;
-
-            // زر الصفحة السابقة
-            html += `
-                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-                    <button class="page-link" onclick="changePage(${currentPage - 1})">
-                        <i class="fa-solid fa-chevron-right"></i> السابق
-                    </button>
-                </li>
-            `;
-
-            // عرض أرقام الصفحات
-            for (let i = 1; i <= totalPages; i++) {
-                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
-                    html += `
-                        <li class="page-item ${i === currentPage ? 'active' : ''}">
-                            <button class="page-link" onclick="changePage(${i})">${i}</button>
-                        </li>
-                    `;
-                } else if (i === currentPage - 3 || i === currentPage + 3) {
-                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-                }
-            }
-
-            // زر الصفحة التالية
-            html += `
-                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-                    <button class="page-link" onclick="changePage(${currentPage + 1})">
-                        التالي <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                </li>
-            `;
-
-            html += `</ul>`;
-            container.innerHTML = html;
-        }
-
-        function changePage(pageNumber) {
-            const totalPages = Math.ceil(filteredArchiveData.length / itemsPerPage);
-            if (pageNumber < 1 || pageNumber > totalPages) return;
-            
-            currentPage = pageNumber;
-            renderPaginatedArchive();
-            
-            // التمرير السلس لأعلى قائمة الأرشيف عند التنقل
-            document.getElementById("archive-content").scrollIntoView({ behavior: 'smooth' });
+            renderGrid(filtered, "archive-grid");
         }
 
         function resetArchiveFilters() {
@@ -549,7 +489,7 @@
         // 4. بناء البطاقات
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
-
+            
             if (items.length === 0) {
                 container.innerHTML = `
                     <div class="col-12 text-center py-5">
@@ -581,7 +521,7 @@
                                 <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source}</span>
                                 <span><i class="fa-regular fa-calendar me-1"></i> الصدور: ${issueDate}</span>
                             </div>
-                            <a href="${item.link}" target="_blank" class="btn btn-read-more w-100 text-decoration-none text-center">
+                            <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="btn btn-read-more w-100 text-decoration-none text-center">
                                 قراءة الخبر من المصدر <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
                             </a>
                         </div>
