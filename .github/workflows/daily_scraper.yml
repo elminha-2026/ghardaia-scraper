@@ -7,123 +7,150 @@ from datetime import datetime, timedelta
 from supabase import create_client, Client
 
 # ==========================================
-# 1. إعدادات الاتصال والبيئة لعام 2026
+# 1. إعدادات البيئة وقاعدة البيانات Supabase
 # ==========================================
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ خطأ: لم يتم ضبط متغيرات البيئة SUPABASE_URL و SUPABASE_KEY")
+    print("❌ خطأ: لم يتم العثور على متغيرات البيئة SUPABASE_URL و SUPABASE_KEY")
     sys.exit(1)
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 TABLE_NAME = "clippings"
 
+# نطاق التاريخ الخاص بسنة 2026
 YEAR_START = datetime(2026, 1, 1)
 YEAR_END = datetime(2026, 12, 31, 23, 59, 59)
 
 # ==========================================
-# 2. جلب جميع القصاصات المسجلة لمنع التكرار (Pagination)
+# 2. دالة جلب كافة الروابط المسجلة (لعدم التكرار)
 # ==========================================
 def get_existing_links():
-    """جلب كل الروابط المسجلة لسنة 2026 بدون تقييد الـ 100"""
+    """جلب كل الروابط المسجلة لسنة 2026 في Supabase بدون تقييد الـ 100"""
     existing_links = set()
     start = 0
     page_size = 1000
 
-    while True:
-        res = supabase.table(TABLE_NAME) \
-            .select('link') \
-            .gte('published_date', YEAR_START.isoformat()) \
-            .lte('published_date', YEAR_END.isoformat()) \
-            .range(start, start + page_size - 1) \
-            .execute()
-        
-        data = res.data
-        if not data:
-            break
-            
-        for row in data:
-            if row.get('link'):
-                existing_links.add(row['link'])
-                
-        if len(data) < page_size:
-            break
-        start += page_size
+    print("🔄 جلب الأرشيف الحالي لتفادي تكرار القصاصات...")
 
-    print(f"📦 عدد القصاصات المسجلة حالياً في قاعدة البيانات لسنة 2026: {len(existing_links)}")
+    while True:
+        try:
+            res = supabase.table(TABLE_NAME) \
+                .select('link') \
+                .gte('published_date', YEAR_START.isoformat()) \
+                .lte('published_date', YEAR_END.isoformat()) \
+                .range(start, start + page_size - 1) \
+                .execute()
+
+            data = res.data
+            if not data:
+                break
+
+            for row in data:
+                if row.get('link'):
+                    existing_links.add(row['link'])
+
+            if len(data) < page_size:
+                break
+
+            start += page_size
+        except Exception as e:
+            print(f"⚠️ خطأ أثناء جلب الروابط المسجلة: {e}")
+            break
+
+    print(f"📦 تم العثور على {len(existing_links)} قصاصة مسجلة حالياً لعام 2026.")
     return existing_links
 
 # ==========================================
-# 3. محرك السحب العميق مع دعم التنقل بين الصفحات (Scraper with Pagination)
+# 3. محرك السحب العميق مع دعم التنقل بين الصفحات
 # ==========================================
+def fetch_page_content(url, headers):
+    """دالة مساعدة لإجراء الطلبات وتفادي الحظر"""
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        if response.status_code == 200:
+            return BeautifulSoup(response.text, 'html.parser')
+        else:
+            print(f"⚠️ استجابة السيرفر غير ناجحة ({response.status_code}) للرابط: {url}")
+            return None
+    except Exception as e:
+        print(f"❌ خطأ أثناء الاتصال بالرابط {url}: {e}")
+        return None
+
 def scrape_all_2026_news():
-    """يسحب الأخبار وينتقل عبر الصفحات حتى يستخرج كل مقالات 2026"""
+    """سحب كافة قصاصات 2026 والتنقل عبر الصفحات"""
     all_scraped_items = []
     
-    # ⚠️ قم بتعديل هذا الرابط والوسوم لتناسب الموقع الإخباري المستهدف
-    base_url = "https://example-news-site.com/search?q=غرداية" 
-    
+    # ⚠️ يمكنك تغيير/إضافة روابط المواقع المستهدفة هنا
+    target_sources = [
+        {
+            "source_name": "جريدة الخبر",
+            "search_url": "https://www.elkhabar.com/search/?q=غرداية",
+            "domain": "https://www.elkhabar.com"
+        }
+    ]
+
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'ar,en;q=0.9'
     }
 
-    page = 1
-    max_pages = 50  # السماح بالتنقل حتى 50 صفحة لتجاوز عقبة الـ 100 عنصر
-    stop_scraping = False
+    print("🔍 بدء عملية السحب الشامل لقصاصات 2026...")
 
-    print("🔍 بدء السحب العميق والتنقل عبر الصفحات لعام 2026...")
+    for target in target_sources:
+        page = 1
+        max_pages = 50  # الحد الأقصى للصفحات المسحوبة لتجاوز تقييد 100 عنصر
+        stop_for_source = False
 
-    while page <= max_pages and not stop_scraping:
-        page_url = f"{base_url}&page={page}"
-        print(f"  📄 سحب الصفحة رقم: {page} -> {page_url}")
+        print(f"\n📰 بدء سحب المصدر: {target['source_name']}")
 
-        try:
-            response = requests.get(page_url, headers=headers, timeout=15)
-            if response.status_code != 200:
-                print(f"⚠️ توقف السحب عند الصفحة {page} بسبب الاستجابة {response.status_code}")
+        while page <= max_pages and not stop_for_source:
+            # صياغة رابط الصفحة الحالية (Pagination)
+            page_url = f"{target['search_url']}&page={page}"
+            print(f"  📄 سحب الصفحة {page}: {page_url}")
+
+            soup = fetch_page_content(page_url, headers)
+            if not soup:
                 break
 
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # ⚠️ حدد وسم مقالات الأخبار حسب بنية الموقع المستهدف
-            articles = soup.find_all('article') 
+            # ⚠️ قم بتعديل وسوم البناء (Tags) بحسب بنية الموقع المستهدف
+            articles = soup.find_all('article') or soup.find_all('div', class_='news-item')
 
             if not articles:
-                print("ℹ️ لم يتم العثور على المزيد من الأخبار في هذه الصفحة.")
+                print(f"ℹ️ لا توجد نتائج إضافية في الصفحة {page}.")
                 break
 
             items_in_page = 0
+
             for article in articles:
-                # استخراج البيانات الأساسية
-                title_elem = article.find('h2') or article.find('a')
+                title_elem = article.find('h2') or article.find('h3') or article.find('a')
                 link_elem = article.find('a')
-                date_elem = article.find('time')
 
                 if not title_elem or not link_elem:
                     continue
 
                 title = title_elem.get_text(strip=True)
                 link = link_elem.get('href')
-                if link and not link.startswith('http'):
-                    link = "https://example-news-site.com" + link
 
-                # معالجة تاريخ الخبر
-                # افترضنا تاريخاً افتراضياً في 2026 إذا تعذر تحليله
-                pub_date = datetime(2026, 1, 15) 
-                
-                # فحص نطاق سنة 2026
+                if link and not link.startswith('http'):
+                    link = target['domain'] + link
+
+                # تاريخ نشر خبر افتراضي ضمن 2026 (أو استخراجه من قوالب المواقع)
+                pub_date = datetime(2026, 2, 10, 10, 0, 0)
+
+                # التأكد من وقوع الخبر داخل نطاق 2026
                 if pub_date < YEAR_START:
-                    print("🛑 وصلنا إلى أخبار أقدم من عام 2026. إيقاف السحب.")
-                    stop_scraping = True
+                    print("🛑 الوصول لقصاصات أقدم من عام 2026. إيقاف السحب لهذا المصدر.")
+                    stop_for_source = True
                     break
 
                 if YEAR_START <= pub_date <= YEAR_END:
                     all_scraped_items.append({
                         "title": title,
                         "summary": title,
-                        "source": "جريدة الخبر",
-                        "category": "أخبار محلية",
+                        "source": target['source_name'],
+                        "category": "أخبار عامة",
                         "importance": "عادي",
                         "published_date": pub_date.isoformat(),
                         "link": link
@@ -131,47 +158,54 @@ def scrape_all_2026_news():
                     items_in_page += 1
 
             print(f"     ✅ تم استخراج {items_in_page} قصاصة من الصفحة {page}")
-            
+
             page += 1
-            time.sleep(1.5) # مهلة زمنية لتجنب حظر الموقع
+            time.sleep(1.2)  # توقف مؤقت لمنع حظر السكريبت من السيرفر
 
-        except Exception as e:
-            print(f"❌ خطأ أثناء سحب الصفحة {page}: {e}")
-            break
-
-    print(f"🎯 إجمالي القصاصات المستخرجة من السكريبت: {len(all_scraped_items)}")
+    print(f"\n🎯 إجمالي القصاصات المستخرجة من العملية: {len(all_scraped_items)}")
     return all_scraped_items
 
 # ==========================================
-# 4. حفظ البيانات بدفعات منظمة (Batch Processing)
+# 4. رفع البيانات بدفعات مجزأة إلى Supabase
 # ==========================================
-def save_in_chunks(items, chunk_size=100):
-    """حفظ البيانات في Supabase بدون رفض الدفعات الكبيرة"""
+def save_items_in_batches(items, batch_size=100):
+    """رفع القصاصات الجديدة على دفعات لتجنب حدود طلبات Supabase"""
     if not items:
-        print("ℹ️ لا توجد قصاصات جديدة للحفظ.")
+        print("ℹ️ لا توجد قصاصات جديدة لرفعها.")
         return
 
-    print(f"💾 جاري رفع {len(items)} قصاصة جديدة إلى Supabase...")
-    for i in range(0, len(items), chunk_size):
-        chunk = items[i:i + chunk_size]
+    print(f"\n💾 جاري إرسال {len(items)} قصاصة جديدة إلى Supabase...")
+
+    for i in range(0, len(items), batch_size):
+        batch = items[i:i + batch_size]
         try:
-            supabase.table(TABLE_NAME).insert(chunk).execute()
-            print(f"   - تم رفع الدفعة {i//chunk_size + 1} بنجاح ({len(chunk)} عنصر)")
+            supabase.table(TABLE_NAME).insert(batch).execute()
+            print(f"  ✅ تم رفع الدفعة {i // batch_size + 1} بنجاح ({len(batch)} قصاصة)")
         except Exception as e:
-            print(f"❌ خطأ في رفع الدفعة: {e}")
+            print(f"  ❌ خطأ في رفع الدفعة {i // batch_size + 1}: {e}")
 
 # ==========================================
-# 5. التنفيذ الرئيسي
+# 5. نقطة التشغيل الرئيسية
 # ==========================================
 def main():
+    print("==================================================")
+    print(" 🚀 بدء تشغيل سكريبت الرصد الصحفي (سنة 2026)")
+    print("==================================================")
+
+    # 1. جلب الروابط المسجلة مسبقاً
     existing_links = get_existing_links()
+
+    # 2. سحب القصاصات مع التنقل بين الصفحات
     scraped_items = scrape_all_2026_news()
 
-    # استبعاد الأخبار المكررة
+    # 3. تصفية العناصر المكررة
     new_items = [item for item in scraped_items if item['link'] not in existing_links]
-    print(f"✨ القصاصات الجديدة الغير مكررة لعام 2026: {len(new_items)}")
+    print(f"\n✨ عدد القصاصات الجديدة الشاملة (غير المكررة): {len(new_items)}")
 
-    save_in_chunks(new_items)
+    # 4. حفظ البيانات في Supabase
+    save_items_in_batches(new_items)
+
+    print("\n🎉 انتهت عملية التجميع والتحديث بنجاح!")
 
 if __name__ == "__main__":
     main()
