@@ -1,93 +1,40 @@
-name: Daily Clippings Scraper (2026 Only)
+name: Daily News Scraper 2026
 
 on:
   schedule:
-    # يعمل مرتين يومياً: الساعة 5:00 صباحاً و 5:00 مساءً بتوقيت الجزائر (UTC+1)
-    - cron: '0 4,16 * * *'
-
-  workflow_dispatch:
-    inputs:
-      scrape_mode:
-        description: 'اختر نطاق البحث'
-        required: true
-        default: 'recent_only'
-        type: choice
-        options:
-          - recent_only   # جلب القصاصات الحديثة فقط
-          - full_2026     # إعادة مسح وجلب كل قصاصات عام 2026
-
-permissions:
-  contents: write
+    # يتم التشغيل تلقائياً يومياً الساعة 06:00 صباحاً بتوقيت UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch: # يتيح لك خيار التفعيل اليدوي بنقرة زر من جيثب
 
 jobs:
   scrape-and-update:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. جلب الكود من المستودع
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. إعداد بيئة Python
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip'
 
-      # 3. عرض الملفات للتأكد من المجلد والملفات الموجودة (للتأكد)
-      - name: List Files in Workspace
-        run: |
-          echo "📂 محتويات المجلد الرئيسي:"
-          ls -la
-
-      # 4. تثبيت المتطلبات والمكتبات
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install feedparser supabase python-dateutil requests beautifulsoup4
 
-      # 5. تحديد نمط التشغيل
-      - name: Determine Scraping Strategy
-        id: set-strategy
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "SCRAPE_MODE=${{ github.event.inputs.scrape_mode }}" >> $GITHUB_ENV
-          else
-            echo "SCRAPE_MODE=recent_only" >> $GITHUB_ENV
-          fi
-
-      # 6. البحث عن السكريبت وتشغيله تلقائياً
-      - name: Run Scraper Script
+      - name: Locate and Run Scraper Script
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          TARGET_YEAR: "2026"
-          TZ: "Africa/Algiers"
         run: |
-          # العثور على الملف أينما كان موقعه في المشروع
-          SCRIPTPATH=$(find . -maxdepth 2 -name "daily_scraper.py" -o -name "scraper.py" -o -name "main.py" | head -n 1)
-          
-          if [ -z "$SCRIPTPATH" ]; then
-            echo "❌ خطأ: لم يتم العثور على ملف البايثون! يرجى التأكد من اسم الملف وموقعه في المستودع."
+          # البحث عن ملف scraper.py وتشغيله أينما كان موقعه
+          SCRIPTPATH=$(find . -maxdepth 2 -name "scraper.py" -print -quit)
+          if [ -n "$SCRIPTPATH" ]; then
+            echo "✅ تم العثور على السكريبت في: $SCRIPTPATH"
+            python "$SCRIPTPATH"
+          else
+            echo "❌ خطأ: لم يتم العثور على ملف scraper.py في المستودع!"
             exit 1
           fi
-          
-          echo "✅ تم العثور على السكريبت في: $SCRIPTPATH"
-          
-          if [ "$SCRAPE_MODE" == "full_2026" ]; then
-            echo "🚀 بدء البحث الشامل عن كافة قصاصات عام 2026..."
-            python $SCRIPTPATH --year 2026 --mode full_year --start-date 2026-01-01
-          else
-            echo "🔄 بدء التحديث الدوري لقصاصات عام 2026 الجديدة..."
-            python $SCRIPTPATH --year 2026 --mode recent_only --days-back 2
-          fi
-
-      # 7. حفظ التغييرات ودفعها
-      - name: Commit & Push Changes
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff-index --quiet HEAD || git commit -m "auto: تحديث دوري لقصاصات 2026 [skip ci]"
-          git push
