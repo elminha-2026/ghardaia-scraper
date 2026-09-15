@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>لوحة رصد وتحليل القصاصات الإخبارية 2026</title>
+  <title>لوحة رصد القصاصات الإخبارية 2026</title>
   
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -43,40 +43,60 @@
     }
 
     /* ==========================================
-       قسم تحليل البيانات والإحصائيات 
+       تصميم التبويبات (Tabs)
        ========================================== */
-    .analytics-section {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-      margin-bottom: 30px;
-      border-top: 4px solid var(--primary-color);
+    .tabs-container {
+      display: flex;
+      gap: 10px;
+      border-bottom: 3px solid #e0e0e0;
+      margin-bottom: 25px;
     }
 
-    .analytics-title {
-      font-size: 20px;
+    .tab-btn {
+      padding: 12px 24px;
+      background: #e0e0e0;
+      border: none;
+      border-radius: 8px 8px 0 0;
+      font-size: 16px;
       font-weight: bold;
-      color: var(--primary-color);
-      margin-bottom: 15px;
-      border-bottom: 2px solid #e0e0e0;
-      padding-bottom: 8px;
+      cursor: pointer;
+      color: #555;
+      transition: all 0.3s ease;
     }
 
-    /* بطاقات الأرقام */
+    .tab-btn:hover {
+      background: #d5d5d5;
+    }
+
+    .tab-btn.active {
+      background: var(--primary-color);
+      color: #ffffff;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* ==========================================
+       قسم الإحصائيات (تبويب التحليل)
+       ========================================== */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 15px;
       margin-bottom: 25px;
     }
 
     .stat-card {
-      background: #f8f9fa;
+      background: var(--card-bg);
       padding: 15px 20px;
       border-radius: 10px;
       border-right: 5px solid var(--primary-color);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
 
     .stat-card.high { border-right-color: #d32f2f; }
@@ -94,22 +114,21 @@
       color: #111;
     }
 
-    /* الرسوم البيانية */
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
       gap: 20px;
     }
 
     .chart-box {
-      background: #fafafa;
-      padding: 15px;
-      border-radius: 8px;
-      border: 1px solid #eee;
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
     /* ==========================================
-       جدول الأخبار
+       الجداول
        ========================================== */
     .table-container {
       background: var(--card-bg);
@@ -158,209 +177,266 @@
 
   <div class="container">
     <header>
-      <h1>📰 منصة رصد وتوافق القصاصات الإخبارية (2026)</h1>
-      <p>لوحة التحكم والرصد التلقائي للأخبار وتحليل اتجاهاتها</p>
+      <h1>📰 منصة رصد القصاصات الإخبارية (2026)</h1>
+      <p>متابعة دورية مستمرة للأخبار والتحليلات الصحفية</p>
     </header>
 
-    <!-- 📊📊 قسم تحليل البيانات المدمج 📊📊 -->
-    <section class="analytics-section">
-      <div class="analytics-title">📈 لوحة تحليل البيانات والإحصائيات المباشرة</div>
+    <!-- 🔘 أزرار التنقل بين التبويبات -->
+    <div class="tabs-container">
+      <button class="tab-btn active" onclick="openTab(event, 'today-tab')">📅 قصاصات اليوم</button>
+      <button class="tab-btn" onclick="openTab(event, 'archive-tab')">📂 الأرشيف الكامل</button>
+      <button class="tab-btn" onclick="openTab(event, 'analytics-tab')">📊 إحصائيات وتحليل البيانات</button>
+    </div>
+
+    <!-- 1️⃣ تبويب: قصاصات اليوم -->
+    <div id="today-tab" class="tab-content active">
+      <div class="table-container">
+        <h3>الأخبار المرصودة اليوم</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>العنوان</th>
+              <th>المصدر</th>
+              <th>التصنيف</th>
+              <th>الأهمية</th>
+              <th>تاريخ النشر</th>
+              <th>الرابط</th>
+            </tr>
+          </thead>
+          <tbody id="today-table">
+            <tr><td colspan="6" style="text-align: center;">جاري جلب قصاصات اليوم...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2️⃣ تبويب: الأرشيف الكامل -->
+    <div id="archive-tab" class="tab-content">
+      <div class="table-container">
+        <h3>أرشيف كافة المرصودات (2026)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>العنوان</th>
+              <th>المصدر</th>
+              <th>التصنيف</th>
+              <th>الأهمية</th>
+              <th>تاريخ النشر</th>
+              <th>الرابط</th>
+            </tr>
+          </thead>
+          <tbody id="archive-table">
+            <tr><td colspan="6" style="text-align: center;">جاري تحميل الأرشيف...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3️⃣ تبويب: إحصائيات وتحليل البيانات -->
+    <div id="analytics-tab" class="tab-content">
       
-      <!-- بطاقات الأرقام -->
+      <!-- ملخص الأرقام السريعة -->
       <div class="stats-grid">
         <div class="stat-card">
-          <h4>إجمالي القصاصات المرصودة</h4>
-          <div class="number" id="total-count">0</div>
+          <h4>إجمالي القصاصات</h4>
+          <div class="number" id="stat-total">0</div>
         </div>
         <div class="stat-card high">
-          <h4>قصاصات عالية الأهمية</h4>
-          <div class="number" id="high-count">0</div>
+          <h4>قصاصات عالي الأهمية</h4>
+          <div class="number" id="stat-high">0</div>
         </div>
         <div class="stat-card sources">
-          <h4>عدد المصادر الصحفية</h4>
-          <div class="number" id="sources-count">0</div>
+          <h4>عدد المصادر</h4>
+          <div class="number" id="stat-sources">0</div>
         </div>
       </div>
 
-      <!-- المخططات البيانية -->
+      <!-- الرسوم البيانية الأربعة -->
       <div class="charts-grid">
         <div class="chart-box">
-          <canvas id="categoryChart"></canvas>
+          <canvas id="topicChart"></canvas>
         </div>
         <div class="chart-box">
-          <canvas id="timelineChart"></canvas>
+          <canvas id="importanceChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <canvas id="sourceChart"></canvas>
+        </div>
+        <div class="chart-box">
+          <canvas id="dateChart"></canvas>
         </div>
       </div>
-    </section>
 
-    <!-- 📋 جدول عرض الأخبار -->
-    <div class="table-container">
-      <h3>📋 أرشيف القصاصات والمرصودات</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>العنوان</th>
-            <th>المصدر</th>
-            <th>التصنيف</th>
-            <th>الأهمية</th>
-            <th>تاريخ النشر</th>
-            <th>الرابط</th>
-          </tr>
-        </thead>
-        <tbody id="clippings-table">
-          <tr>
-            <td colspan="6" style="text-align: center;">جاري جلب البيانات وتحديث التحليلات...</td>
-          </tr>
-        </tbody>
-      </table>
     </div>
+
   </div>
 
   <script>
     // ==========================================
-    // 1. مفاتيح الاتصال بقاعدة بيانات Supabase
+    // 1. مفاتيح الاتصال بـ Supabase
     // ==========================================
     const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p
-";
+    const SUPABASE_ANON_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p";
 
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    let allClippings = [];
+
     // ==========================================
-    // 2. جلب وتنفيذ معالجة وتحليل البيانات
+    // 2. التحكم في التبويبات
     // ==========================================
-    async function loadDataAndAnalytics() {
+    function openTab(evt, tabName) {
+      const tabContents = document.getElementsByClassName("tab-content");
+      for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].classList.remove("active");
+      }
+      
+      const tabBtns = document.getElementsByClassName("tab-btn");
+      for (let i = 0; i < tabBtns.length; i++) {
+        tabBtns[i].classList.remove("active");
+      }
+
+      document.getElementById(tabName).classList.add("active");
+      evt.currentTarget.classList.add("active");
+    }
+
+    // ==========================================
+    // 3. جلب وتحليل البيانات
+    // ==========================================
+    async function loadAllData() {
       try {
-        const { data: clippings, error } = await _supabase
+        const { data, error } = await _supabase
           .from('clippings')
           .select('*')
           .order('published_date', { ascending: false });
 
         if (error) throw error;
+        allClippings = data || [];
 
-        if (!clippings || clippings.length === 0) {
-          document.getElementById('clippings-table').innerHTML = `
-            <tr><td colspan="6" style="text-align: center;">لا توجد بيانات مسجلة حالياً.</td></tr>
-          `;
-          return;
-        }
-
-        // --- أ. حساب الأرقام الإحصائية الرئيسية ---
-        const total = clippings.length;
-        const highImportance = clippings.filter(i => i.importance === 'عالي').length;
-        const uniqueSources = new Set(clippings.map(i => i.source || 'غير معروف')).size;
-
-        document.getElementById('total-count').innerText = total;
-        document.getElementById('high-count').innerText = highImportance;
-        document.getElementById('sources-count').innerText = uniqueSources;
-
-        // --- ب. تجميع البيانات للرسم البياني الدائري (التصنيفات) ---
-        const categoryCounts = {};
-        clippings.forEach(item => {
-          const cat = item.category || 'عام';
-          categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
-        });
-
-        // --- ج. تجميع البيانات للرسم البياني الزمني (شهور 2026) ---
-        const monthlyCounts = {};
-        clippings.forEach(item => {
-          if (item.published_date) {
-            const month = item.published_date.substring(0, 7); // YYYY-MM
-            monthlyCounts[month] = (monthlyCounts[month] || 0) + 1;
-          }
-        });
-
-        // تشغيل الرسوم البيانية
-        renderCategoryChart(categoryCounts);
-        renderTimelineChart(monthlyCounts);
-
-        // --- د. ملء جدول البيانات ---
-        const tableBody = document.getElementById('clippings-table');
-        tableBody.innerHTML = '';
-
-        clippings.forEach(item => {
-          const dateStr = item.published_date 
-            ? new Date(item.published_date).toLocaleDateString('ar-DZ') 
-            : 'غير محدد';
-
-          const badgeClass = item.importance === 'عالي' ? 'badge-high' : 'badge-normal';
-
-          const row = `
-            <tr>
-              <td><strong>${item.title}</strong></td>
-              <td>${item.source || 'غير معروف'}</td>
-              <td>${item.category || 'عام'}</td>
-              <td><span class="badge ${badgeClass}">${item.importance || 'عادي'}</span></td>
-              <td>${dateStr}</td>
-              <td><a href="${item.link}" target="_blank" rel="noopener">فتح الخبر 🔗</a></td>
-            </tr>
-          `;
-          tableBody.innerHTML += row;
-        });
+        renderTodayTable();
+        renderArchiveTable();
+        renderAnalytics();
 
       } catch (err) {
-        console.error('❌ خطأ في تحميل البيانات والتحليل:', err);
-        document.getElementById('clippings-table').innerHTML = `
-          <tr><td colspan="6" style="text-align: center; color: red;">تعذر الاتصال بقاعدة البيانات. تحقق من مفاتيح Supabase.</td></tr>
-        `;
+        console.error('❌ خطأ أثناء جلب البيانات:', err);
       }
     }
 
+    // بناء جدول قصاصات اليوم
+    function renderTodayTable() {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayItems = allClippings.filter(item => item.published_date && item.published_date.startsWith(todayStr));
+      
+      const tbody = document.getElementById('today-table');
+      tbody.innerHTML = '';
+
+      if (todayItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">لا توجد قصاصات جديدة لليوم حتى الآن.</td></tr>`;
+        return;
+      }
+
+      todayItems.forEach(item => { tbody.innerHTML += createRowHtml(item); });
+    }
+
+    // بناء جدول الأرشيف
+    function renderArchiveTable() {
+      const tbody = document.getElementById('archive-table');
+      tbody.innerHTML = '';
+
+      if (allClippings.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">الأرشيف فارغ.</td></tr>`;
+        return;
+      }
+
+      allClippings.forEach(item => { tbody.innerHTML += createRowHtml(item); });
+    }
+
+    function createRowHtml(item) {
+      const dateStr = item.published_date ? new Date(item.published_date).toLocaleDateString('ar-DZ') : 'غير محدد';
+      const badgeClass = item.importance === 'عالي' ? 'badge-high' : 'badge-normal';
+      
+      return `
+        <tr>
+          <td><strong>${item.title}</strong></td>
+          <td>${item.source || 'غير معروف'}</td>
+          <td>${item.category || 'عام'}</td>
+          <td><span class="badge ${badgeClass}">${item.importance || 'عادي'}</span></td>
+          <td>${dateStr}</td>
+          <td><a href="${item.link}" target="_blank" rel="noopener">فتح الخبر 🔗</a></td>
+        </tr>
+      `;
+    }
+
     // ==========================================
-    // 3. بناء الرسم البياني للتصنيفات
+    // 4. بناء الرسوم البيانية الأربعة للتبويب الثالث
     // ==========================================
-    function renderCategoryChart(dataObj) {
-      const ctx = document.getElementById('categoryChart').getContext('2d');
-      new Chart(ctx, {
+    function renderAnalytics() {
+      if (allClippings.length === 0) return;
+
+      // أرقام الملخص
+      document.getElementById('stat-total').innerText = allClippings.length;
+      document.getElementById('stat-high').innerText = allClippings.filter(i => i.importance === 'عالي').length;
+      
+      const sourcesSet = new Set(allClippings.map(i => i.source || 'غير معروف'));
+      document.getElementById('stat-sources').innerText = sourcesSet.size;
+
+      // تجميع البيانات
+      const topicCounts = {};
+      const importanceCounts = {};
+      const sourceCounts = {};
+      const dateCounts = {};
+
+      allClippings.forEach(item => {
+        // الموضوع
+        const cat = item.category || 'عام';
+        topicCounts[cat] = (topicCounts[cat] || 0) + 1;
+
+        // الأهمية
+        const imp = item.importance || 'عادي';
+        importanceCounts[imp] = (importanceCounts[imp] || 0) + 1;
+
+        // المصدر
+        const src = item.source || 'غير معروف';
+        sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+
+        // تاريخ الصدور (شهرياً)
+        if (item.published_date) {
+          const month = item.published_date.substring(0, 7);
+          dateCounts[month] = (dateCounts[month] || 0) + 1;
+        }
+      });
+
+      // 1. رسم الموضوع
+      new Chart(document.getElementById('topicChart'), {
         type: 'doughnut',
-        data: {
-          labels: Object.keys(dataObj),
-          datasets: [{
-            data: Object.values(dataObj),
-            backgroundColor: ['#1b5e20', '#0288d1', '#f57c00', '#7b1fa2', '#d32f2f']
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: 'bottom' },
-            title: { display: true, text: 'توزيع القصاصات حسب التصنيف' }
-          }
-        }
+        data: { labels: Object.keys(topicCounts), datasets: [{ data: Object.values(topicCounts), backgroundColor: ['#1b5e20', '#0288d1', '#f57c00', '#7b1fa2'] }] },
+        options: { plugins: { title: { display: true, text: 'القصاصات حسب الموضوع' } } }
       });
-    }
 
-    // ==========================================
-    // 4. بناء الرسم البياني الزمني للأخبار
-    // ==========================================
-    function renderTimelineChart(dataObj) {
-      const sortedMonths = Object.keys(dataObj).sort();
-      const ctx = document.getElementById('timelineChart').getContext('2d');
-      new Chart(ctx, {
+      // 2. رسم الأهمية
+      new Chart(document.getElementById('importanceChart'), {
+        type: 'pie',
+        data: { labels: Object.keys(importanceCounts), datasets: [{ data: Object.values(importanceCounts), backgroundColor: ['#d32f2f', '#4caf50'] }] },
+        options: { plugins: { title: { display: true, text: 'القصاصات حسب درجة الأهمية' } } }
+      });
+
+      // 3. رسم المصادر (Top Sources)
+      new Chart(document.getElementById('sourceChart'), {
         type: 'bar',
-        data: {
-          labels: sortedMonths,
-          datasets: [{
-            label: 'عدد القصاصات',
-            data: sortedMonths.map(m => dataObj[m]),
-            backgroundColor: '#0288d1'
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            title: { display: true, text: 'التوزيع الزمني للنشر (شهرياً)' }
-          },
-          scales: {
-            y: { beginAtZero: true }
-          }
-        }
+        data: { labels: Object.keys(sourceCounts), datasets: [{ label: 'العدد', data: Object.values(sourceCounts), backgroundColor: '#f57c00' }] },
+        options: { plugins: { title: { display: true, text: 'أكثر المصادر نشراً' } } }
+      });
+
+      // 4. رسم تاريخ الصدور
+      const sortedDates = Object.keys(dateCounts).sort();
+      new Chart(document.getElementById('dateChart'), {
+        type: 'line',
+        data: { labels: sortedDates, datasets: [{ label: 'القصاصات', data: sortedDates.map(d => dateCounts[d]), borderColor: '#0288d1', fill: false }] },
+        options: { plugins: { title: { display: true, text: 'توزيع القصاصات حسب تاريخ الصدور' } } }
       });
     }
 
-    // تشغيل التحليل المباشر
-    document.addEventListener('DOMContentLoaded', loadDataAndAnalytics);
+    document.addEventListener('DOMContentLoaded', loadAllData);
   </script>
 </body>
 </html>
