@@ -15,21 +15,37 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
         body { font-family: 'Tajawal', sans-serif; }
+        /* خلفية الهيدر البصرية الجديدة لمدينة غرداية والأخبار */
+        .hero-banner {
+            background: linear-gradient(rgba(15, 23, 42, 0.80), rgba(15, 23, 42, 0.88)), 
+                        url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1600&q=80');
+            background-size: cover;
+            background-position: center;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
 
-    <!-- الهيدر الأصلي للصفحة -->
-    <header class="bg-slate-900 text-white py-8 px-4 sm:px-6 lg:px-8 border-b-4 border-amber-600 shadow-md">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="text-center md:text-right">
-                <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight">منصة قصاصات غرداية الإخبارية</h1>
-                <p class="text-slate-400 text-sm sm:text-base mt-1">
+    <!-- 3. الصورة البارزة أعلى الصفحة تعبر عن غرداية والأخبار المتنوعة -->
+    <header class="hero-banner text-white py-12 px-4 sm:px-6 lg:px-8 border-b-4 border-amber-600 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="text-center md:text-right space-y-2">
+                <div class="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-xs font-semibold border border-amber-500/30 mb-1">
+                    <i class="fa-solid fa-newspaper"></i> المرصد الصحفي الإعلامي 2026
+                </div>
+                <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight">منصة قصاصات غرداية الإخبارية</h1>
+                <p class="text-slate-300 text-sm sm:text-base max-w-2xl">
                     متابعة شاملة ودقيقة لكل ما ينشر حول مدينة غرداية والتراث المظبي في الصحافة الوطنية والدولية
                 </p>
             </div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-xs font-semibold border border-amber-500/30">
-                <i class="fa-solid fa-newspaper"></i> المرصد الصحفي 2026
+            <div class="flex items-center gap-3 bg-slate-900/60 p-4 rounded-xl backdrop-blur-md border border-slate-700/50">
+                <div class="p-3 bg-amber-600 rounded-lg text-white">
+                    <i class="fa-solid fa-landmark text-2xl"></i>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400">تغطية خاصة</div>
+                    <div class="font-bold text-amber-400 text-sm">تراث، ثقافة، واقتصاد واد مزاب</div>
+                </div>
             </div>
         </div>
     </header>
@@ -43,12 +59,12 @@
                     <i class="fa-solid fa-filter text-amber-600"></i> فرز القصاصات:
                 </span>
                 
-                <!-- إضافة خيار "اقتصاد" لفرز القصاصات -->
+                <!-- 1. إضافة تصنيف "الاقتصاد" إلى القائمة -->
                 <select id="categoryFilter" onchange="filterClippings()" class="bg-slate-100 border border-slate-300 rounded-lg px-4 py-2 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none">
                     <option value="ALL">جميع التصنيفات</option>
                     <option value="تراث وثقافة">تراث وثقافة</option>
                     <option value="نشاطات الجمعية">نشاطات الجمعية</option>
-                    <option value="اقتصاد">اقتصاد وسوق</option>
+                    <option value="اقتصاد">اقتصاد وسوق</option> <!-- الميزة الجديدة -->
                     <option value="أخبار عامة">أخبار عامة</option>
                 </select>
 
@@ -79,7 +95,7 @@
             </div>
         </section>
 
-        <!-- تحليل الإحصائيات والمعلومات (إضافة جدول بلدان الزوار) -->
+        <!-- 2. تحليل الإحصائيات والمعلومات (بما فيه إضافة بلدان وعدد الزوار) -->
         <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
             <div class="border-b border-slate-200 pb-4 flex items-center justify-between">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -97,7 +113,7 @@
                     </div>
                 </div>
 
-                <!-- جدول توزيع الزوار حسب البلدان -->
+                <!-- جدول بلدان وعدد الزوار المضاف -->
                 <div class="lg:col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -162,9 +178,8 @@
 
     <!-- JavaScript للربط بـ Supabase -->
     <script>
-        const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co
-";
-        const SUPABASE_ANON_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p";
+        const SUPABASE_URL = "YOUR_SUPABASE_URL";
+        const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let allClippings = [];
