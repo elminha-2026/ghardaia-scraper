@@ -6,13 +6,12 @@ from datetime import datetime
 from dateutil import parser as date_parser
 from supabase import create_client, Client
 
-# --- 1. التحقق من مفاتيح الاتصال بـ Supabase ---
+# --- 1. التحقق من مفاتيح الاتصال ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-print("🔍 [اختبار الاتصال] جاري التحقق من متغيرات البيئة...")
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ خطأ قاطع: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في Secrets!")
+    print("❌ خطأ: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في Secrets!")
     sys.exit(1)
 
 try:
@@ -22,31 +21,55 @@ except Exception as e:
     print(f"❌ خطأ أثناء الاتصال بـ Supabase: {e}")
     sys.exit(1)
 
-# --- 2. الاستعلامات الكلاسيكية البسيطة والمستقرة (بدون after/before لمنع منع النتائج) ---
-SEARCH_QUERIES = [
-    # العربية
-    {"q": "غرداية", "params": "hl=ar&gl=DZ&ceid=DZ:ar"},
-    {"q": "ولاية غرداية", "params": "hl=ar&gl=DZ&ceid=DZ:ar"},
-    {"q": "تراث غرداية", "params": "hl=ar&gl=DZ&ceid=DZ:ar"},
-    {"q": "الشيخ أبي إسحاق", "params": "hl=ar&gl=DZ&ceid=DZ:ar"},
-    {"q": "مزاب", "params": "hl=ar&gl=DZ&ceid=DZ:ar"},
-
-    # الفرنسية
-    {"q": "Ghardaia", "params": "hl=fr&gl=DZ&ceid=DZ:fr"},
-    {"q": "patrimoine Ghardaia", "params": "hl=fr&gl=DZ&ceid=DZ:fr"},
-    {"q": "Mzab", "params": "hl=fr&gl=DZ&ceid=DZ:fr"},
-
-    # الإنجليزية
-    {"q": "Ghardaia", "params": "hl=en&gl=US&ceid=US:en"},
-    {"q": "Ghardaia heritage", "params": "hl=en&gl=US&ceid=US:en"}
+# --- 2. استعلامات متكاملة وموسعة للغات الثلاث ---
+SEARCH_CONFIGS = [
+    {
+        "lang": "ar",
+        "queries": [
+            "غرداية",
+            '"ولاية غرداية"',
+            '"تراث غرداية"',
+            '"الشيخ أبي إسحاق"',
+            '"جمعية التراث"',
+            "مزاب"
+        ],
+        "params": "hl=ar&gl=DZ&ceid=DZ:ar"
+    },
+    {
+        "lang": "fr",
+        "queries": [
+            "Ghardaïa",
+            '"wilaya de Ghardaia"',
+            '"patrimoine Ghardaia"',
+            '"Abou Issaq"',
+            "Mzab"
+        ],
+        "params": "hl=fr&gl=DZ&ceid=DZ:fr"
+    },
+    {
+        "lang": "en",
+        "queries": [
+            "Ghardaia",
+            '"Ghardaia heritage"',
+            '"Mzab valley"'
+        ],
+        "params": "hl=en&gl=US&ceid=US:en"
+    }
 ]
 
 def determine_category_and_importance(title, summary):
+    """تحليل نص الخبر بلغات متعددة لتحديد التصنيف والأهمية"""
     text = f"{title} {summary}".lower()
     
     category = "أخبار عامة"
-    heritage_kw = ["تراث", "مخطوط", "تاريخ", "قصور", "ثقافة", "مزاب", "patrimoine", "manuscrit", "histoire", "culture", "heritage", "history", "mzab"]
-    activity_kw = ["أبي إسحاق", "جمعية", "ملتقى", "محاضرة", "ندوة", "association", "séminaire", "conférence", "abou issaq"]
+    heritage_kw = [
+        "تراث", "مخطوط", "تاريخ", "زايد", "قصور", "ثقافة", "مزاب",
+        "patrimoine", "manuscrit", "histoire", "culture", "heritage", "history", "mzab"
+    ]
+    activity_kw = [
+        "أبي إسحاق", "جمعية", "ملتقى", "محاضرة", "ندوة",
+        "association", "séminaire", "conférence", "abou issaq"
+    ]
 
     if any(k in text for k in heritage_kw):
         category = "تراث وثقافة"
@@ -54,81 +77,116 @@ def determine_category_and_importance(title, summary):
         category = "نشاطات الجمعية"
 
     importance = "عادي"
-    high_kw = ["أبي إسحاق", "افتتاح", "رسمي", "هام", "اتفاقية", "وزير", "والي", "abou issaq", "ministre", "wali", "officiel", "minister"]
+    high_kw = [
+        "أبي إسحاق", "افتتاح", "رسمي", "هام", "اتفاقية", "وزير", "والي",
+        "abou issaq", "ministre", "wali", "officiel", "minister"
+    ]
 
     if any(k in text for k in high_kw):
         importance = "عالي"
 
     return category, importance
 
-def process_date(raw_date):
-    """تحليل التاريخ بطريقة آمنة تضمن الحفظ ولا تسقط المقالات"""
-    if raw_date:
-        try:
-            dt = date_parser.parse(raw_date)
+def validate_and_parse_2026_date(raw_date):
+    """التحقق الجازم من أن القصاصة تنتمي لعام 2026 حصراً وترجيع صيغة ISO"""
+    if not raw_date:
+        return None
+    try:
+        dt = date_parser.parse(raw_date)
+        if dt.year == 2026:
             return dt.isoformat()
-        except Exception:
-            pass
-    return datetime.utcnow().isoformat()
+    except Exception:
+        pass
+    return None
 
-def run_scraper():
-    print("\n🚀 بدء جلب وتحديث كافة القصاصات المتاحة...")
+def fetch_rss(query, params):
+    encoded_query = urllib.parse.quote(query)
+    rss_url = f"https://news.google.com/rss/search?q={encoded_query}&{params}"
+    return feedparser.parse(rss_url)
+
+def scrape_and_store():
+    print("🚀 بدء التمشيط العميق لعام 2026 باللغات الثلاث (العربية، الفرنسية، الإنجليزية)...")
+    
+    # الأشهر لعام 2026 لتفادي حد الـ 100 خبر لكل استعلام
+    months_2026 = [
+        ("2026-01-01", "2026-01-31"),
+        ("2026-02-01", "2026-02-28"),
+        ("2026-03-01", "2026-03-31"),
+        ("2026-04-01", "2026-04-30"),
+        ("2026-05-01", "2026-05-31"),
+        ("2026-06-01", "2026-06-30"),
+        ("2026-07-01", "2026-07-31"),
+        ("2026-08-01", "2026-08-31"),
+        ("2026-09-01", "2026-09-30"),
+        ("2026-10-01", "2026-10-31"),
+        ("2026-11-01", "2026-11-30"),
+        ("2026-12-01", "2026-12-31"),
+    ]
 
     total_added = 0
-    total_found_overall = 0
+    total_rejected = 0
 
-    for item in SEARCH_QUERIES:
-        query_text = item["q"]
-        rss_params = item["params"]
+    for config in SEARCH_CONFIGS:
+        lang = config["lang"]
+        queries = config["queries"]
+        params = config["params"]
 
-        encoded_query = urllib.parse.quote(query_text)
-        rss_url = f"https://news.google.com/rss/search?q={encoded_query}&{rss_params}"
-        
-        feed = feedparser.parse(rss_url)
-        entries_count = len(feed.entries)
-        total_found_overall += entries_count
+        print(f"\n🌐 --- بدء المعالجة باللغة [{lang.upper()}] ---")
 
-        print(f"📡 البحث عن: [{query_text}] ---> تم العثور على ({entries_count}) خبر")
+        for q in queries:
+            # 1. جلب التحديثات المباشرة للكلمة المفتاحية
+            all_target_queries = [q]
 
-        for entry in feed.entries:
-            title = entry.get("title", "").strip()
-            link = entry.get("link", "").strip()
-            published_raw = entry.get("published", "").strip()
+            # 2. إضافة النطاق الشهري لكل كلمة لضمان عدم ضياع الأرشيف
+            for start_d, end_d in months_2026:
+                all_target_queries.append(f"{q} after:{start_d} before:{end_d}")
 
-            if not title or not link:
-                continue
+            for target_q in all_target_queries:
+                feed = fetch_rss(target_q, params)
 
-            published_iso = process_date(published_raw)
+                for entry in feed.entries:
+                    title = entry.get("title", "").strip()
+                    link = entry.get("link", "").strip()
+                    published_raw = entry.get("published", "").strip()
 
-            source = "صحافة إلكترونية"
-            if "source" in entry and isinstance(entry.source, dict):
-                source = entry.source.get("title", "صحافة إلكترونية")
+                    # شرط التدقيق: قبول فقط القصاصات التابعة لعام 2026
+                    published_iso = validate_and_parse_2026_date(published_raw)
+                    if not published_iso:
+                        total_rejected += 1
+                        continue
 
-            summary = entry.get("summary", title)
-            category, importance = determine_category_and_importance(title, summary)
+                    source = "صحافة إلكترونية"
+                    if "source" in entry and isinstance(entry.source, dict):
+                        source = entry.source.get("title", "صحافة إلكترونية")
 
-            data = {
-                "title": title,
-                "source": source,
-                "link": link,
-                "published_date": published_iso,
-                "summary": summary,
-                "category": category,
-                "importance": importance
-            }
+                    summary = entry.get("summary", "")
+                    if not summary and "title_detail" in entry:
+                        summary = title
 
-            try:
-                # حفظ القصاصة في جدول clippings مع تجنب التكرار بفضل رابط الخبر Unique Link
-                res = supabase.table("clippings").upsert(data, on_conflict="link").execute()
-                if res.data:
-                    total_added += 1
-            except Exception as e:
-                print(f"   ⚠️ خطأ Supabase أثناء حفظ [{title[:20]}...]: {e}")
+                    if title and link:
+                        category, importance = determine_category_and_importance(title, summary)
+
+                        data = {
+                            "title": title,
+                            "source": source,
+                            "link": link,
+                            "published_date": published_iso,
+                            "summary": summary,
+                            "category": category,
+                            "importance": importance
+                        }
+
+                        try:
+                            res = supabase.table("clippings").upsert(data, on_conflict="link").execute()
+                            if res.data:
+                                total_added += 1
+                        except Exception:
+                            pass
 
     print("\n" + "="*60)
-    print(f"📊 إجمالي المقالات الملتقطة من Google News: {total_found_overall}")
-    print(f"🎉 إجمالي القصاصات المحفوظة/المحدثة بـ Supabase: {total_added}")
+    print(f"🎉 النتيجة النهائية: تم حفظ وتحديث {total_added} قصاصة مؤكدة لعام 2026 بنجاح!")
+    print(f"🛡️ تم استبعاد {total_rejected} مقال لعدم توافق تاريخها مع سنة 2026.")
     print("="*60)
 
 if __name__ == "__main__":
-    run_scraper()
+    scrape_and_store()
