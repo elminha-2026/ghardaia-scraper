@@ -16,7 +16,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 2. إعدادات البحث للغات الثلاث ---
+# --- 2. إعدادات البحث بكلمات موسعة لزيادة النتائج ---
 SEARCH_CONFIGS = [
     {
         "lang": "ar",
@@ -55,10 +55,16 @@ def determine_category_and_importance(title, summary):
 
     return category, importance
 
-def parse_and_validate_2026(raw_date):
-    """تحويل التاريخ والتحقق الصارم من أن الخبر نُشر في عام 2026 حصراً"""
+def parse_and_verify_2026(raw_date):
+    """
+    تحليل التاريخ والتحقق الجازم من أن المقال نشر في سنة 2026 حصراً.
+    يُرجع None في حال كان التاريخ قديماً أو تعذر التحقق منه لتعزيز الدقة.
+    """
+    if not raw_date:
+        return None
     try:
         dt = date_parser.parse(raw_date)
+        # التحقق من أن السنة هي 2026 فقط
         if dt.year == 2026:
             return dt.isoformat()
         return None
@@ -66,8 +72,9 @@ def parse_and_validate_2026(raw_date):
         return None
 
 def run_backfill_2026():
-    print("🚀 [مرة واحدة فقط] بدء مسح واستخراج كافة قصاصات عام 2026...")
+    print("🚀 بدء استخراج كافة قصاصات عام 2026 باللغات الثلاث مع التحقق الدقيق من التاريخ...")
     
+    # تقسيم سنة 2026 إلى أشهر لجلب أكبر قدر ممكن من النتائج دون أن يتجاوز حد Google RSS
     months_2026 = [
         ("2026-01-01", "2026-01-31"),
         ("2026-02-01", "2026-02-28"),
@@ -84,16 +91,17 @@ def run_backfill_2026():
     ]
 
     total_added = 0
-    total_rejected = 0
+    total_ignored = 0
 
     for config in SEARCH_CONFIGS:
         lang = config["lang"]
         base_query = config["query"]
         rss_params = config["rss_params"]
 
-        print(f"\n🌐 جلب أرشيف 2026 للغة: [{lang.upper()}]...")
+        print(f"\n🌐 جلب أرشيف 2026 للغة [{lang.upper()}]...")
 
         for start_d, end_d in months_2026:
+            # استخدام بعد وقبل مع تواريخ المدى المحدد
             query = f"{base_query} after:{start_d} before:{end_d}"
             encoded_query = urllib.parse.quote(query)
             rss_url = f"https://news.google.com/rss/search?q={encoded_query}&{rss_params}"
@@ -105,12 +113,12 @@ def run_backfill_2026():
                 link = entry.get("link", "").strip()
                 published_raw = entry.get("published", "").strip()
 
-                # شرط الأمان: التأكد الصارم من أن المقال يتبع لسنة 2026
-                published_iso = parse_and_validate_2026(published_raw)
+                # التحقق الصارم: هل المقال من سنة 2026 فعلاً؟
+                published_iso = parse_and_verify_2026(published_raw)
                 
                 if not published_iso:
-                    total_rejected += 1
-                    continue # تجاهل المقال إذا لم يكن من سنة 2026
+                    total_ignored += 1
+                    continue  # استبعاد التواريخ القديمة (مثل 1990) أو غير المعروفة
 
                 source = "صحافة إلكترونية"
                 if "source" in entry and isinstance(entry.source, dict):
@@ -137,8 +145,8 @@ def run_backfill_2026():
                     pass
 
     print("\n" + "="*50)
-    print(f"🎉 إنجاز الأرشيف: تم حفظ {total_added} قصاصة مؤكدة لسنة 2026 بنجاح!")
-    print(f"🛑 تم استبعاد {total_rejected} مقال لعدم توافق التاريخ مع عام 2026.")
+    print(f"🎉 تم الانتهاء بنجاح! القصاصات المقبولة والمحققة لعام 2026: {total_added}")
+    print(f"🛡️ القصاصات المستبعدة (تواريخ قديمة/غير مطابقة لـ 2026): {total_ignored}")
     print("="*50)
 
 if __name__ == "__main__":
