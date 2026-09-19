@@ -6,7 +6,7 @@ from datetime import datetime
 from dateutil import parser as date_parser
 from supabase import create_client, Client
 
-# --- 1. التحقق من مفاتيح الاتصال ---
+# --- 1. التحقق من مفاتيح الاتصال بـ Supabase ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
@@ -21,7 +21,7 @@ except Exception as e:
     print(f"❌ خطأ أثناء الاتصال بـ Supabase: {e}")
     sys.exit(1)
 
-# --- 2. استعلامات متكاملة وموسعة للغات الثلاث ---
+# --- 2. إعدادات البحث باللغات الثلاث (تفكيك العبارات لزيادة النتائج) ---
 SEARCH_CONFIGS = [
     {
         "lang": "ar",
@@ -58,7 +58,7 @@ SEARCH_CONFIGS = [
 ]
 
 def determine_category_and_importance(title, summary):
-    """تحليل نص الخبر بلغات متعددة لتحديد التصنيف والأهمية"""
+    """تحليل نص الخبر لتحديد التصنيف والأهمية (يشمل التصنيف الجديد: اقتصاد)"""
     text = f"{title} {summary}".lower()
     
     category = "أخبار عامة"
@@ -70,11 +70,17 @@ def determine_category_and_importance(title, summary):
         "أبي إسحاق", "جمعية", "ملتقى", "محاضرة", "ندوة",
         "association", "séminaire", "conférence", "abou issaq"
     ]
+    economy_kw = [
+        "اقتصاد", "سوق", "تجارة", "استثمار", "تنمية", "ميزانية", "أسعار", "بورصة", "فلاحة",
+        "économie", "commerce", "investissement", "market", "economy", "trade"
+    ]
 
     if any(k in text for k in heritage_kw):
         category = "تراث وثقافة"
     elif any(k in text for k in activity_kw):
         category = "نشاطات الجمعية"
+    elif any(k in text for k in economy_kw):
+        category = "اقتصاد"  # التصنيف الجديد
 
     importance = "عادي"
     high_kw = [
@@ -88,7 +94,7 @@ def determine_category_and_importance(title, summary):
     return category, importance
 
 def validate_and_parse_2026_date(raw_date):
-    """التحقق الجازم من أن القصاصة تنتمي لعام 2026 حصراً وترجيع صيغة ISO"""
+    """التحقق الصارم من أن التاريخ ينتمي لعام 2026 حصراً"""
     if not raw_date:
         return None
     try:
@@ -105,9 +111,9 @@ def fetch_rss(query, params):
     return feedparser.parse(rss_url)
 
 def scrape_and_store():
-    print("🚀 بدء التمشيط العميق لعام 2026 باللغات الثلاث (العربية، الفرنسية، الإنجليزية)...")
+    print("🚀 بدء تمشيط قصاصات وأخبار عام 2026 باللغات الثلاث...")
     
-    # الأشهر لعام 2026 لتفادي حد الـ 100 خبر لكل استعلام
+    # تفكيك الأشهر لضمان عدم تجاوز حد 100 خبر لكل استعلام
     months_2026 = [
         ("2026-01-01", "2026-01-31"),
         ("2026-02-01", "2026-02-28"),
@@ -131,17 +137,16 @@ def scrape_and_store():
         queries = config["queries"]
         params = config["params"]
 
-        print(f"\n🌐 --- بدء المعالجة باللغة [{lang.upper()}] ---")
+        print(f"\n🌐 --- معالجة الأخبار باللغة [{lang.upper()}] ---")
 
         for q in queries:
-            # 1. جلب التحديثات المباشرة للكلمة المفتاحية
-            all_target_queries = [q]
+            target_queries = [q]
 
-            # 2. إضافة النطاق الشهري لكل كلمة لضمان عدم ضياع الأرشيف
+            # إلحاق نطاقات التواريخ لكل كلمة مفتاحية لضمان التقاط الأرشيف الكامل
             for start_d, end_d in months_2026:
-                all_target_queries.append(f"{q} after:{start_d} before:{end_d}")
+                target_queries.append(f"{q} after:{start_d} before:{end_d}")
 
-            for target_q in all_target_queries:
+            for target_q in target_queries:
                 feed = fetch_rss(target_q, params)
 
                 for entry in feed.entries:
@@ -149,7 +154,7 @@ def scrape_and_store():
                     link = entry.get("link", "").strip()
                     published_raw = entry.get("published", "").strip()
 
-                    # شرط التدقيق: قبول فقط القصاصات التابعة لعام 2026
+                    # التأكد من أن القصاصة من عام 2026
                     published_iso = validate_and_parse_2026_date(published_raw)
                     if not published_iso:
                         total_rejected += 1
@@ -177,6 +182,7 @@ def scrape_and_store():
                         }
 
                         try:
+                            # تحديث وإدراج القصاصة دون تكرار بناءً على رابط الخبر
                             res = supabase.table("clippings").upsert(data, on_conflict="link").execute()
                             if res.data:
                                 total_added += 1
@@ -184,8 +190,8 @@ def scrape_and_store():
                             pass
 
     print("\n" + "="*60)
-    print(f"🎉 النتيجة النهائية: تم حفظ وتحديث {total_added} قصاصة مؤكدة لعام 2026 بنجاح!")
-    print(f"🛡️ تم استبعاد {total_rejected} مقال لعدم توافق تاريخها مع سنة 2026.")
+    print(f"🎉 تم الانتهاء بنجاح! القصاصات المرفوعة/المحدثة لعام 2026: {total_added}")
+    print(f"🛡️ المقالات المستبعدة (تواريخ غير مطابقة لـ 2026): {total_rejected}")
     print("="*60)
 
 if __name__ == "__main__":
