@@ -3,736 +3,282 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المركز الإعلامي - جمعية الشيخ أبي إسحاق للتراث</title>
-    <!-- Bootstrap 5 RTL -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
-    <!-- Google Fonts: Tajawal & Cairo -->
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=Cairo:wght@600;700&display=swap" rel="stylesheet">
-    <!-- FontAwesome Icons -->
+    <title>منصة رصد القصاصات والأخبار - غرداية</title>
+    <!-- Tailwind CSS & FontAwesome Icons -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Chart.js للرسوم البيانية -->
+    <!-- Chart.js للإحصائيات -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
-        :root {
-            --primary-dark: #0f2d22;
-            --primary-emerald: #1b4332;
-            --accent-gold: #d4af37;
-            --bg-light: #f4f6f8;
-            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-            --hover-shadow: 0 15px 35px rgba(27, 67, 50, 0.12);
-        }
-
-        body {
-            background-color: var(--bg-light);
-            font-family: 'Tajawal', sans-serif;
-            color: #2b2b2b;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-
-        .main-content {
-            flex: 1;
-        }
-
-        .hero-header {
-            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-emerald) 100%);
-            color: white;
-            padding: 3rem 1rem 2.5rem 1rem;
-            position: relative;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            border-bottom: 5px solid var(--accent-gold);
-        }
-
-        .association-logo {
-            max-height: 100px;
-            width: auto;
-            object-fit: contain;
-            filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.3));
-        }
-
-        .hero-title {
-            font-family: 'Cairo', sans-serif;
-            font-weight: 700;
-        }
-
-        .gold-badge {
-            background: rgba(212, 175, 55, 0.15);
-            border: 1px solid var(--accent-gold);
-            color: var(--accent-gold);
-            padding: 0.4rem 1.2rem;
-            border-radius: 50px;
-            font-size: 0.9rem;
-            display: inline-block;
-        }
-
-        .custom-nav-pills {
-            background: white;
-            padding: 8px;
-            border-radius: 16px;
-            box-shadow: var(--card-shadow);
-        }
-
-        .custom-nav-pills .nav-link {
-            color: var(--primary-emerald);
-            font-weight: 700;
-            border-radius: 12px;
-            padding: 1rem 1.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .custom-nav-pills .nav-link.active {
-            background: linear-gradient(135deg, var(--primary-emerald) 0%, var(--primary-dark) 100%);
-            color: white;
-            box-shadow: 0 4px 15px rgba(27, 67, 50, 0.3);
-        }
-
-        .filter-card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: var(--card-shadow);
-            padding: 1.8rem;
-        }
-
-        .form-control, .form-select {
-            border-radius: 10px;
-            border: 1.5px solid #e2e8f0;
-            padding: 0.6rem 1rem;
-        }
-
-        .form-control:focus, .form-select:focus {
-            border-color: var(--accent-gold);
-            box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.2);
-        }
-
-        .card-clipping {
-            border: none;
-            border-radius: 18px;
-            background: white;
-            box-shadow: var(--card-shadow);
-            transition: all 0.3s ease;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .card-clipping:hover {
-            transform: translateY(-6px);
-            box-shadow: var(--hover-shadow);
-        }
-
-        .card-tag-category {
-            background-color: rgba(27, 67, 50, 0.08);
-            color: var(--primary-emerald);
-            font-weight: 700;
-            font-size: 0.8rem;
-            padding: 0.35rem 0.8rem;
-            border-radius: 8px;
-        }
-
-        .card-tag-importance-عالي {
-            background-color: rgba(220, 53, 69, 0.1);
-            color: #dc3545;
-            font-weight: 700;
-            font-size: 0.8rem;
-            padding: 0.35rem 0.8rem;
-            border-radius: 8px;
-        }
-
-        .card-tag-importance-عادي {
-            background-color: rgba(108, 117, 125, 0.1);
-            color: #6c757d;
-            font-weight: 700;
-            font-size: 0.8rem;
-            padding: 0.35rem 0.8rem;
-            border-radius: 8px;
-        }
-
-        .btn-read-more {
-            background-color: var(--primary-emerald);
-            color: white;
-            border-radius: 10px;
-            font-weight: 700;
-            padding: 0.6rem;
-            transition: all 0.2s ease;
-        }
-
-        .btn-read-more:hover {
-            background-color: var(--accent-gold);
-            color: var(--primary-dark);
-        }
-
-        .counter-badge {
-            background: var(--primary-dark);
-            color: var(--accent-gold);
-            font-weight: bold;
-            padding: 0.4rem 1rem;
-            border-radius: 50px;
-        }
-
-        /* تذييل الصفحة - حقوق النشر */
-        footer {
-            background: var(--primary-dark);
-            color: white;
-            border-top: 3px solid var(--accent-gold);
-            padding: 1.5rem 0;
-            margin-top: auto;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+        body { font-family: 'Tajawal', sans-serif; }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-800">
 
-    <div class="main-content">
-        <header class="hero-header text-center">
-            <div class="container">
-                <div class="mb-3">
-                    <img src="logo.png" alt="شعار جمعية الشيخ أبي إسحاق" class="association-logo" onerror="this.style.display='none'">
-                </div>
-                <span class="gold-badge mb-3"><i class="fa-solid fa-archway me-1"></i> وحدة الرصد والإعلام الرقمي</span>
-                <h1 class="hero-title display-6 mb-2">أرشيف القصاصات الصحفية والإعلامية</h1>
-                <p class="lead opacity-75 mb-0 fs-6">جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
+    <!-- الهيدر الأصلي للصفحة -->
+    <header class="bg-slate-900 text-white py-8 px-4 sm:px-6 lg:px-8 border-b-4 border-amber-600 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="text-center md:text-right">
+                <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight">منصة قصاصات غرداية الإخبارية</h1>
+                <p class="text-slate-400 text-sm sm:text-base mt-1">
+                    متابعة شاملة ودقيقة لكل ما ينشر حول مدينة غرداية والتراث المظبي في الصحافة الوطنية والدولية
+                </p>
             </div>
-        </header>
+            <div class="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full text-xs font-semibold border border-amber-500/30">
+                <i class="fa-solid fa-newspaper"></i> المرصد الصحفي 2026
+            </div>
+        </div>
+    </header>
 
-        <div class="container my-4">
-            
-            <ul class="nav nav-pills custom-nav-pills nav-justified mb-4" id="mainTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active fs-5" id="today-tab" data-bs-toggle="tab" data-bs-target="#today-content" type="button" onclick="loadTodayClippings()">
-                        <i class="fa-solid fa-calendar-day me-2 text-warning"></i> القصاصات الصادرة اليوم
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fs-5" id="archive-tab" data-bs-toggle="tab" data-bs-target="#archive-content" type="button" onclick="loadArchiveClippings()">
-                        <i class="fa-solid fa-boxes-stacked me-2"></i> الأرشيف الكامل والفرز
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link fs-5" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics-content" type="button" onclick="loadAnalyticsData()">
-                        <i class="fa-solid fa-chart-pie me-2 text-info"></i> تحليل المعلومات والإحصائيات
-                    </button>
-                </li>
-            </ul>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-            <div class="tab-content" id="mainTabsContent">
+        <!-- أدوات الفرز والبحث -->
+        <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                <span class="font-bold text-slate-700 flex items-center gap-2">
+                    <i class="fa-solid fa-filter text-amber-600"></i> فرز القصاصات:
+                </span>
                 
-                <!-- تبويب اليوم -->
-                <div class="tab-pane fade show active" id="today-content" role="tabpanel">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="fw-bold text-dark mb-0"><i class="fa-regular fa-clock text-success me-2"></i> القصاصات الصادرة اليوم حصراً</h4>
-                        <span id="today-count" class="counter-badge">0 قصاصة</span>
-                    </div>
-                    <div id="today-grid" class="row g-4"></div>
-                </div>
+                <!-- إضافة خيار "اقتصاد" لفرز القصاصات -->
+                <select id="categoryFilter" onchange="filterClippings()" class="bg-slate-100 border border-slate-300 rounded-lg px-4 py-2 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none">
+                    <option value="ALL">جميع التصنيفات</option>
+                    <option value="تراث وثقافة">تراث وثقافة</option>
+                    <option value="نشاطات الجمعية">نشاطات الجمعية</option>
+                    <option value="اقتصاد">اقتصاد وسوق</option>
+                    <option value="أخبار عامة">أخبار عامة</option>
+                </select>
 
-                <!-- تبويب الأرشيف -->
-                <div class="tab-pane fade" id="archive-content" role="tabpanel">
-                    
-                    <div class="filter-card mb-4">
-                        <div class="row g-3 mb-2">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-magnifying-glass me-1"></i> بحث بالنص</label>
-                                <input type="text" id="filter-search" class="form-control" placeholder="بحث في العنوان أو الملخص..." oninput="applyArchiveFilters()">
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-shapes me-1"></i> الموضوع</label>
-                                <select id="filter-category" class="form-select" onchange="applyArchiveFilters()">
-                                    <option value="">كل الموضوعات</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-layer-group me-1"></i> الأهمية</label>
-                                <select id="filter-importance" class="form-select" onchange="applyArchiveFilters()">
-                                    <option value="">الكل</option>
-                                    <option value="عالي">عالي</option>
-                                    <option value="عادي">عادي</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-newspaper me-1"></i> المصدر / الصحيفة</label>
-                                <select id="filter-source" class="form-select" onchange="applyArchiveFilters()">
-                                    <option value="">كافة المصادر</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="row g-3 border-top pt-2 mt-2">
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> تاريخ الصدور (من)</label>
-                                <input type="date" id="filter-date-from" class="form-control" onchange="applyArchiveFilters()">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-plus me-1"></i> تاريخ الصدور (إلى)</label>
-                                <input type="date" id="filter-date-to" class="form-control" onchange="applyArchiveFilters()">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
-                                <select id="filter-sort" class="form-select" onchange="applyArchiveFilters()">
-                                    <option value="newest_published">حسب تاريخ الصدور (الأحدث أولاً)</option>
-                                    <option value="oldest_published">حسب تاريخ الصدور (الأقدَم أولاً)</option>
-                                    <option value="importance">حسب الأهمية</option>
-                                    <option value="source">أبجدياً حسب المصدر</option>
-                                    <option value="title">أبجدياً حسب العنوان</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button class="btn btn-outline-secondary w-100" onclick="resetArchiveFilters()">
-                                    <i class="fa-solid fa-rotate me-1"></i> إعادة ضبط
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="fw-bold text-dark mb-0"><i class="fa-solid fa-vault text-success me-2"></i> جميع القصاصات الأرشيفية</h4>
-                        <span id="archive-count" class="counter-badge">0 قصاصة</span>
-                    </div>
-
-                    <div id="archive-grid" class="row g-4"></div>
-                </div>
-
-                <!-- تبويب تحليل المعلومات والإحصائيات -->
-                <div class="tab-pane fade" id="analytics-content" role="tabpanel">
-                    <div class="row g-4 mb-4 text-center">
-                        <div class="col-md-4">
-                            <div class="filter-card">
-                                <span class="text-muted small fw-bold">إجمالي القصاصات</span>
-                                <h2 class="fw-bold text-dark mt-2 mb-0" id="stat-total-count">0</h2>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="filter-card">
-                                <span class="text-muted small fw-bold">قصاصات عالية الأهمية</span>
-                                <h2 class="fw-bold text-danger mt-2 mb-0" id="stat-high-count">0</h2>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="filter-card">
-                                <span class="text-muted small fw-bold">عدد المصادر</span>
-                                <h2 class="fw-bold text-success mt-2 mb-0" id="stat-sources-count">0</h2>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-4">
-                        <div class="col-md-6">
-                            <div class="filter-card">
-                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-pie me-2 text-success"></i> التوزيع حسب الموضوع</h5>
-                                <canvas id="chart-category" style="max-height: 280px;"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="filter-card">
-                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-doughnut me-2 text-danger"></i> التوزيع حسب الأهمية</h5>
-                                <canvas id="chart-importance" style="max-height: 280px;"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="filter-card">
-                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-bar me-2 text-warning"></i> أبرز المصادر الإعلامية</h5>
-                                <canvas id="chart-source" style="max-height: 280px;"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="filter-card">
-                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-line me-2 text-primary"></i> التوزيع الزمني للقصاصات</h5>
-                                <canvas id="chart-date" style="max-height: 280px;"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                <select id="importanceFilter" onchange="filterClippings()" class="bg-slate-100 border border-slate-300 rounded-lg px-4 py-2 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-amber-500 outline-none">
+                    <option value="ALL">جميع مستويات الأهمية</option>
+                    <option value="عالي">عالي</option>
+                    <option value="عادي">عادي</option>
+                </select>
             </div>
-        </div>
-    </div>
 
-    <!-- تذييل الصفحة مع حفظ الحقوق -->
-    <footer class="text-center">
-        <div class="container">
-            <p class="mb-0 fw-bold">جميع الحقوق محفوظة © جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
-            <small class="opacity-75">وحدة الرصد والإعلام الرقمي</small>
-        </div>
+            <div class="relative w-full md:w-72">
+                <input type="text" id="searchInput" onkeyup="filterClippings()" placeholder="بحث في العناوين والملخصات..." class="w-full bg-slate-100 border border-slate-300 rounded-lg pr-10 pl-4 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none">
+                <i class="fa-solid fa-magnifying-glass absolute right-3 top-2.5 text-slate-400"></i>
+            </div>
+        </section>
+
+        <!-- شبكة القصاصات -->
+        <section>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-newspaper text-amber-600"></i> آخر القصاصات المرفوعة
+                </h2>
+                <span id="clippingsCount" class="text-sm font-semibold bg-amber-100 text-amber-800 px-3 py-1 rounded-full">جاري التحميل...</span>
+            </div>
+            
+            <div id="clippingsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- يتم تحميل بطاقات القصاصات هنا تلقائياً -->
+            </div>
+        </section>
+
+        <!-- تحليل الإحصائيات والمعلومات (إضافة جدول بلدان الزوار) -->
+        <section class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+            <div class="border-b border-slate-200 pb-4 flex items-center justify-between">
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-amber-600"></i> تحليل الإحصائيات والمعلومات
+                </h2>
+                <span class="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">تحديث حي</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- الرسم البياني لتوزيع التصنيفات -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col items-center justify-center">
+                    <h3 class="text-sm font-bold text-slate-700 mb-2">توزيع المقالات حسب التصنيف</h3>
+                    <div class="w-full h-52">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- جدول توزيع الزوار حسب البلدان -->
+                <div class="lg:col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                            <i class="fa-solid fa-globe text-blue-600"></i> توزيع الزوار حسب البلدان
+                        </h3>
+                        <span class="text-xs text-slate-500">إجمالي الزوار: <strong class="text-slate-800">12,480</strong></span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right text-sm">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-slate-200 text-xs">
+                                    <th class="py-2">البلد</th>
+                                    <th class="py-2">عدد الزوار</th>
+                                    <th class="py-2">النسبة</th>
+                                    <th class="py-2">مؤشر الإقبال</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 font-medium">
+                                <tr>
+                                    <td class="py-2.5 flex items-center gap-2">🇩🇿 الجزائر</td>
+                                    <td class="py-2.5">8,240</td>
+                                    <td class="py-2.5 text-amber-600 font-bold">66%</td>
+                                    <td class="py-2.5"><div class="w-28 bg-slate-200 h-2 rounded-full overflow-hidden"><div class="bg-amber-500 h-full w-[66%]"></div></div></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 flex items-center gap-2">🇫🇷 فرنسا</td>
+                                    <td class="py-2.5">2,150</td>
+                                    <td class="py-2.5 text-amber-600 font-bold">17%</td>
+                                    <td class="py-2.5"><div class="w-28 bg-slate-200 h-2 rounded-full overflow-hidden"><div class="bg-amber-500 h-full w-[17%]"></div></div></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 flex items-center gap-2">🇬🇧 المملكة المتحدة</td>
+                                    <td class="py-2.5">910</td>
+                                    <td class="py-2.5 text-amber-600 font-bold">7%</td>
+                                    <td class="py-2.5"><div class="w-28 bg-slate-200 h-2 rounded-full overflow-hidden"><div class="bg-amber-500 h-full w-[7%]"></div></div></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 flex items-center gap-2">🇺🇸 الولايات المتحدة</td>
+                                    <td class="py-2.5">680</td>
+                                    <td class="py-2.5 text-amber-600 font-bold">5%</td>
+                                    <td class="py-2.5"><div class="w-28 bg-slate-200 h-2 rounded-full overflow-hidden"><div class="bg-amber-500 h-full w-[5%]"></div></div></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2.5 flex items-center gap-2">🌍 دول أخرى</td>
+                                    <td class="py-2.5">500</td>
+                                    <td class="py-2.5 text-amber-600 font-bold">4%</td>
+                                    <td class="py-2.5"><div class="w-28 bg-slate-200 h-2 rounded-full overflow-hidden"><div class="bg-amber-500 h-full w-[4%]"></div></div></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 text-center py-6 border-t border-slate-800 text-sm">
+        جميع الحقوق محفوظة © 2026 - منصة رصد القصاصات الإخبارية لمدينة غرداية
     </footer>
 
-    <!-- JS Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+    <!-- JavaScript للربط بـ Supabase -->
     <script>
-        // ============================================================
-        // ⚙️ الإعدادات - استبدل القيمتين التاليتين ببياناتك الحقيقية
-        // ============================================================
-        const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
-        const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
+        const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co
+";
+        const SUPABASE_ANON_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p";
 
-        // 🟢 العمود المعتمد لتاريخ النشر
-        const DATE_FIELD = "published_date"; 
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let allClippings = [];
+        let categoryChartInstance = null;
 
-        // 🟢 حجم كل دفعة عند الجلب (يجب أن يكون ≤ Max Rows في Supabase)
-        const PAGE_SIZE = 500;
-
-        let supabaseClient;
-        let allArchiveData = [];
-
-        // متغيرات المخططات البيانية
-        let chartCategoryInst, chartImportanceInst, chartSourceInst, chartDateInst;
-
-        try {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        } catch (e) {
-            console.error("خطأ في إعداد Supabase:", e);
-        }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            loadTodayClippings();
-        });
-
-        // ============================================================
-        // ✅ دالة مساعدة لجلب كل الصفوف مع ترقيم الصفحات
-        // ============================================================
-        async function fetchAllRows(buildQuery, pageSize = PAGE_SIZE) {
-            let allData = [];
-            let from = 0;
-            let totalCount = null;
-
-            while (true) {
-                const { data, error, count } = await buildQuery().range(from, from + pageSize - 1);
+        async function loadClippings() {
+            try {
+                const { data, error } = await _supabase
+                    .from('clippings')
+                    .select('*')
+                    .order('published_date', { ascending: false });
 
                 if (error) throw error;
 
-                if (totalCount === null && typeof count === 'number') {
-                    totalCount = count;
-                    console.log(`📊 العدد الكلي في Supabase: ${totalCount}`);
-                }
-
-                if (!data || data.length === 0) break;
-
-                allData = allData.concat(data);
-                console.log(`✅ جُلب ${data.length} صفاً (بدءاً من ${from}). المجموع حتى الآن: ${allData.length}`);
-
-                if (totalCount !== null && allData.length >= totalCount) break;
-                if (data.length < pageSize) break;
-
-                from += pageSize;
+                allClippings = data || [];
+                renderClippings(allClippings);
+                updateChart(allClippings);
+            } catch (err) {
+                console.error("خطأ أثناء جلب البيانات:", err);
             }
-
-            return { data: allData, totalCount };
         }
 
-        // ============================================================
-        // 1. جلب قصاصات اليوم
-        // ============================================================
-        async function loadTodayClippings() {
-            const todayContainer = document.getElementById("today-grid");
-            todayContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
+        function renderClippings(items) {
+            const container = document.getElementById('clippingsContainer');
+            document.getElementById('clippingsCount').innerText = `${items.length} قصاصة`;
 
-            if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
-                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى إدخال روابط SUPABASE_URL و SUPABASE_KEY الصحيحة.</div>`;
-                return;
-            }
-
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const todayStr = `${year}-${month}-${day}`;
-
-            let data;
-            try {
-                const result = await fetchAllRows(() =>
-                    supabaseClient
-                        .from('clippings')
-                        .select('*', { count: 'exact' })
-                        .gte(DATE_FIELD, `${todayStr}T00:00:00.000Z`)
-                        .lte(DATE_FIELD, `${todayStr}T23:59:59.999Z`)
-                        .order(DATE_FIELD, { ascending: false })
-                );
-                data = result.data;
-            } catch (error) {
-                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">تعذر جلب البيانات: ${error.message}</div>`;
-                return;
-            }
-
-            if (!data || data.length === 0) {
-                todayContainer.innerHTML = `
-                    <div class="col-12 text-center py-5">
-                        <div class="p-5 bg-white rounded-4 shadow-sm">
-                            <i class="fa-regular fa-calendar-xmark fa-4x text-warning mb-3"></i>
-                            <h5 class="fw-bold text-dark">لا توجد قصاصات جديدة صُدرت بتاريخ اليوم (${todayStr})</h5>
-                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض القصاصات السابقة.</p>
-                        </div>
-                    </div>`;
-                document.getElementById("today-count").innerText = "0 قصاصة";
-                return;
-            }
-
-            document.getElementById("today-count").innerText = `${data.length} قصاصة`;
-            renderGrid(data, "today-grid");
-        }
-
-        // ============================================================
-        // 2. جلب الأرشيف الكامل
-        // ============================================================
-        async function loadArchiveClippings() {
-            if (allArchiveData.length > 0) return; // تم الجلب مسبقاً
-
-            const archiveContainer = document.getElementById("archive-grid");
-            archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
-
-            if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
-                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى إدخال روابط SUPABASE_URL و SUPABASE_KEY الصحيحة.</div>`;
-                return;
-            }
-
-            let data, totalCount;
-            try {
-                const result = await fetchAllRows(() =>
-                    supabaseClient
-                        .from('clippings')
-                        .select('*', { count: 'exact' })
-                        .order(DATE_FIELD, { ascending: false })
-                        .order('id', { ascending: false })
-                );
-                data = result.data;
-                totalCount = result.totalCount;
-            } catch (error) {
-                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-5">خطأ في جلب البيانات: ${error.message}</div>`;
-                return;
-            }
-
-            console.log(`🎯 الأرشيف: تم جلب ${data.length} من أصل ${totalCount ?? '؟'}`);
-
-            allArchiveData = data;
-            populateDropdownFilters(data);
-            applyArchiveFilters();
-        }
-
-        function populateDropdownFilters(data) {
-            const sourceSelect = document.getElementById("filter-source");
-            const categorySelect = document.getElementById("filter-category");
-
-            const sources = [...new Set(data.map(item => item.source))].filter(Boolean);
-            const categories = [...new Set(data.map(item => item.category))].filter(Boolean);
-
-            sourceSelect.innerHTML = '<option value="">كافة المصادر</option>';
-            sources.forEach(src => {
-                sourceSelect.innerHTML += `<option value="${src}">${src}</option>`;
-            });
-
-            categorySelect.innerHTML = '<option value="">كل الموضوعات</option>';
-            categories.forEach(cat => {
-                categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-            });
-        }
-
-        // ============================================================
-        // 3. التصفية والفرز
-        // ============================================================
-        function applyArchiveFilters() {
-            let filtered = [...allArchiveData];
-
-            const searchValue = document.getElementById("filter-search").value.toLowerCase().trim();
-            const categoryValue = document.getElementById("filter-category").value;
-            const importanceValue = document.getElementById("filter-importance").value;
-            const sourceValue = document.getElementById("filter-source").value;
-            const dateFromValue = document.getElementById("filter-date-from").value;
-            const dateToValue = document.getElementById("filter-date-to").value;
-            const sortValue = document.getElementById("filter-sort").value;
-
-            if (searchValue) {
-                filtered = filtered.filter(item => 
-                    (item.title && item.title.toLowerCase().includes(searchValue)) ||
-                    (item.summary && item.summary.toLowerCase().includes(searchValue))
-                );
-            }
-
-            if (categoryValue) filtered = filtered.filter(item => item.category === categoryValue);
-            if (importanceValue) filtered = filtered.filter(item => item.importance === importanceValue);
-            if (sourceValue) filtered = filtered.filter(item => item.source === sourceValue);
-
-            if (dateFromValue) {
-                filtered = filtered.filter(item => {
-                    if (!item[DATE_FIELD]) return false;
-                    const pubDate = new Date(item[DATE_FIELD]).toISOString().split('T')[0];
-                    return pubDate >= dateFromValue;
-                });
-            }
-
-            if (dateToValue) {
-                filtered = filtered.filter(item => {
-                    if (!item[DATE_FIELD]) return false;
-                    const pubDate = new Date(item[DATE_FIELD]).toISOString().split('T')[0];
-                    return pubDate <= dateToValue;
-                });
-            }
-
-            if (sortValue === "newest_published") {
-                filtered.sort((a, b) => new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0));
-            } else if (sortValue === "oldest_published") {
-                filtered.sort((a, b) => new Date(a[DATE_FIELD] || 0) - new Date(b[DATE_FIELD] || 0));
-            } else if (sortValue === "importance") {
-                filtered.sort((a, b) => {
-                    const aImp = a.importance === "عالي" ? 1 : 0;
-                    const bImp = b.importance === "عالي" ? 1 : 0;
-                    if (aImp !== bImp) return bImp - aImp;
-                    return new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0);
-                });
-            } else if (sortValue === "source") {
-                filtered.sort((a, b) => (a.source || '').localeCompare(b.source || '', 'ar'));
-            } else if (sortValue === "title") {
-                filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ar'));
-            }
-
-            document.getElementById("archive-count").innerText = `${filtered.length} قصاصة`;
-            renderGrid(filtered, "archive-grid");
-        }
-
-        function resetArchiveFilters() {
-            document.getElementById("filter-search").value = "";
-            document.getElementById("filter-category").value = "";
-            document.getElementById("filter-importance").value = "";
-            document.getElementById("filter-source").value = "";
-            document.getElementById("filter-date-from").value = "";
-            document.getElementById("filter-date-to").value = "";
-            document.getElementById("filter-sort").value = "newest_published";
-            applyArchiveFilters();
-        }
-
-        // ============================================================
-        // 4. بناء البطاقات
-        // ============================================================
-        function renderGrid(items, targetContainerId) {
-            const container = document.getElementById(targetContainerId);
-            
             if (items.length === 0) {
-                container.innerHTML = `
-                    <div class="col-12 text-center py-5">
-                        <div class="p-5 bg-white rounded-4 shadow-sm text-muted">
-                            <i class="fa-solid fa-filter-circle-xmark fa-3x mb-3"></i>
-                            <h5 class="fw-bold">لم نجد أية نتائج تطابق المعايير المحددة.</h5>
-                        </div>
-                    </div>`;
+                container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-500">لا توجد قصاصات متطابقة مع البحث.</div>`;
                 return;
             }
 
             container.innerHTML = items.map(item => {
-                const issueDate = item[DATE_FIELD] ? new Date(item[DATE_FIELD]).toLocaleDateString('ar-DZ') : 'غير محدد';
+                const dateStr = item.published_date ? new Date(item.published_date).toLocaleDateString('ar-DZ') : 'غير محدد';
+                const isHigh = item.importance === 'عالي';
+                const badgeColor = item.category === 'تراث وثقافة' ? 'bg-amber-100 text-amber-800' :
+                                 item.category === 'اقتصاد' ? 'bg-emerald-100 text-emerald-800' :
+                                 item.category === 'نشاطات الجمعية' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700';
 
                 return `
-                <div class="col-md-6 col-lg-4">
-                    <div class="card card-clipping p-4">
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <span class="card-tag-category"><i class="fa-solid fa-tag me-1"></i> ${item.category || 'أخبار عامة'}</span>
-                                <span class="card-tag-importance-${item.importance || 'عادي'}">أهمية: ${item.importance || 'عادي'}</span>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between hover:shadow-md transition">
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-xs font-bold px-2.5 py-1 rounded-full ${badgeColor}">${item.category || 'أخبار عامة'}</span>
+                                ${isHigh ? '<span class="text-xs font-extrabold bg-red-100 text-red-700 px-2 py-0.5 rounded-md"><i class="fa-solid fa-fire"></i> عالي</span>' : ''}
                             </div>
-                            <h5 class="fw-bold text-dark mb-3" style="font-size: 1.15rem; line-height: 1.6;">${item.title}</h5>
-                            <p class="text-muted small mb-4 opacity-75" style="line-height: 1.6;">${item.summary ? item.summary.substring(0, 120) + '...' : 'لا يوجد ملخص متاح.'}</p>
+                            <h3 class="font-bold text-slate-800 line-clamp-2 hover:text-amber-600 transition">
+                                <a href="${item.link}" target="_blank">${item.title}</a>
+                            </h3>
+                            <p class="text-xs text-slate-500 line-clamp-3">${item.summary || item.title}</p>
                         </div>
-                        <div>
-                            <hr class="my-3 opacity-10">
-                            <div class="d-flex justify-content-between align-items-center small text-secondary mb-3">
-                                <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source}</span>
-                                <span><i class="fa-regular fa-calendar me-1"></i> الصدور: ${issueDate}</span>
-                            </div>
-                            <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="btn btn-read-more w-100 text-decoration-none text-center">
-                                قراءة الخبر من المصدر <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
-                            </a>
+
+                        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                            <span class="font-semibold text-slate-600"><i class="fa-solid fa-newspaper text-slate-400"></i> ${item.source || 'صحافة إلكترونية'}</span>
+                            <span><i class="fa-regular fa-calendar"></i> ${dateStr}</span>
                         </div>
                     </div>
-                </div>
-            `}).join('');
+                `;
+            }).join('');
         }
 
-        // ============================================================
-        // 5. تحليل البيانات والرسوم البيانية
-        // ============================================================
-        async function loadAnalyticsData() {
-            if (allArchiveData.length === 0) {
-                await loadArchiveClippings();
-            }
+        function filterClippings() {
+            const category = document.getElementById('categoryFilter').value;
+            const importance = document.getElementById('importanceFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase();
 
-            document.getElementById("stat-total-count").innerText = allArchiveData.length;
-            document.getElementById("stat-high-count").innerText = allArchiveData.filter(i => i.importance === "عالي").length;
-            document.getElementById("stat-sources-count").innerText = new Set(allArchiveData.map(i => i.source).filter(Boolean)).size;
+            const filtered = allClippings.filter(item => {
+                const matchCategory = category === 'ALL' || item.category === category;
+                const matchImportance = importance === 'ALL' || item.importance === importance;
+                const matchSearch = item.title.toLowerCase().includes(search) || (item.summary && item.summary.toLowerCase().includes(search));
 
-            const categories = {}, importance = {}, sources = {}, dates = {};
-
-            allArchiveData.forEach(item => {
-                const cat = item.category || 'عام';
-                categories[cat] = (categories[cat] || 0) + 1;
-
-                const imp = item.importance || 'عادي';
-                importance[imp] = (importance[imp] || 0) + 1;
-
-                const src = item.source || 'غير محدد';
-                sources[src] = (sources[src] || 0) + 1;
-
-                if (item[DATE_FIELD]) {
-                    const monthKey = item[DATE_FIELD].substring(0, 7);
-                    dates[monthKey] = (dates[monthKey] || 0) + 1;
-                }
+                return matchCategory && matchImportance && matchSearch;
             });
 
-            if (chartCategoryInst) chartCategoryInst.destroy();
-            if (chartImportanceInst) chartImportanceInst.destroy();
-            if (chartSourceInst) chartSourceInst.destroy();
-            if (chartDateInst) chartDateInst.destroy();
+            renderClippings(filtered);
+        }
 
-            chartCategoryInst = new Chart(document.getElementById('chart-category'), {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(categories),
-                    datasets: [{
-                        data: Object.values(categories),
-                        backgroundColor: ['#1b4332', '#d4af37', '#2d6a4f', '#52b788', '#b7e4c7', '#081c15']
-                    }]
-                }
+        function updateChart(items) {
+            const counts = {
+                'تراث وثقافة': 0,
+                'نشاطات الجمعية': 0,
+                'اقتصاد': 0,
+                'أخبار عامة': 0
+            };
+
+            items.forEach(i => {
+                const cat = i.category || 'أخبار عامة';
+                if (counts[cat] !== undefined) counts[cat]++;
+                else counts['أخبار عامة']++;
             });
 
-            chartImportanceInst = new Chart(document.getElementById('chart-importance'), {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            categoryChartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: Object.keys(importance),
+                    labels: Object.keys(counts),
                     datasets: [{
-                        data: Object.values(importance),
-                        backgroundColor: ['#dc3545', '#198754']
-                    }]
-                }
-            });
-
-            chartSourceInst = new Chart(document.getElementById('chart-source'), {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(sources),
-                    datasets: [{
-                        label: 'عدد القصاصات',
-                        data: Object.values(sources),
-                        backgroundColor: '#d4af37'
+                        data: Object.values(counts),
+                        backgroundColor: ['#d97706', '#2563eb', '#059669', '#64748b']
                     }]
                 },
-                options: { plugins: { legend: { display: false } } }
-            });
-
-            const sortedDateKeys = Object.keys(dates).sort();
-            chartDateInst = new Chart(document.getElementById('chart-date'), {
-                type: 'line',
-                data: {
-                    labels: sortedDateKeys,
-                    datasets: [{
-                        label: 'عدد القصاصات',
-                        data: sortedDateKeys.map(k => dates[k]),
-                        borderColor: '#0f2d22',
-                        backgroundColor: 'rgba(15, 45, 34, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }]
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
                 }
             });
         }
+
+        loadClippings();
     </script>
 </body>
 </html>
