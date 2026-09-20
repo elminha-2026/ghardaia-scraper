@@ -94,21 +94,6 @@ def determine_category_and_importance(title, summary):
 
     return category, importance
 
-def is_relevant_content(title, summary):
-    """
-    تتأكد من أن الكلمة المفتاحية موجودة فعلياً في عنوان الخبر أو ملخصه المباشر، 
-    وليس مجرد إشارة فرعية في التعريف بالكاتب أو الهامش.
-    """
-    text_to_check = f"{title} {summary}".lower()
-    
-    core_keywords = [
-        "غرداية", "ghardaia", "ghardaïa", 
-        "مزاب", "mzab", 
-        "أبي إسحاق", "abou issaq"
-    ]
-    
-    return any(keyword in text_to_check for keyword in core_keywords)
-
 def validate_and_parse_2026_date(raw_date):
     """التحقق الجازم من أن القصاصة تنتمي لعام 2026 حصراً وترجيع صيغة ISO"""
     if not raw_date:
@@ -146,8 +131,7 @@ def scrape_and_store():
     ]
 
     total_added = 0
-    total_rejected_date = 0
-    total_rejected_irrelevant = 0
+    total_rejected = 0
 
     for config in SEARCH_CONFIGS:
         lang = config["lang"]
@@ -175,21 +159,16 @@ def scrape_and_store():
                     # شرط التدقيق: قبول فقط القصاصات التابعة لعام 2026
                     published_iso = validate_and_parse_2026_date(published_raw)
                     if not published_iso:
-                        total_rejected_date += 1
-                        continue
-
-                    summary = entry.get("summary", "")
-                    if not summary and "title_detail" in entry:
-                        summary = title
-
-                    # الفلترة الصارمة: التأكد من صلة القصاصة المباشرة بغرداية ومنع الإشارات الهامشية
-                    if not is_relevant_content(title, summary):
-                        total_rejected_irrelevant += 1
+                        total_rejected += 1
                         continue
 
                     source = "صحافة إلكترونية"
                     if "source" in entry and isinstance(entry.source, dict):
                         source = entry.source.get("title", "صحافة إلكترونية")
+
+                    summary = entry.get("summary", "")
+                    if not summary and "title_detail" in entry:
+                        summary = title
 
                     if title and link:
                         category, importance = determine_category_and_importance(title, summary)
@@ -213,8 +192,7 @@ def scrape_and_store():
 
     print("\n" + "="*60)
     print(f"🎉 النتيجة النهائية: تم حفظ وتحديث {total_added} قصاصة مؤكدة لعام 2026 بنجاح!")
-    print(f"🛡️ تم استبعاد {total_rejected_irrelevant} مقال غير مرتبط مباشرة (وردت الكلمة في تعريف الكاتب أو الهامش).")
-    print(f"🗓️ تم استبعاد {total_rejected_date} مقال لعدم توافق تاريخها مع سنة 2026.")
+    print(f"🛡️ تم استبعاد {total_rejected} مقال لعدم توافق تاريخها مع سنة 2026.")
     print("="*60)
 
 if __name__ == "__main__":
