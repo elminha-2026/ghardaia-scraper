@@ -6,7 +6,7 @@ from datetime import datetime
 from dateutil import parser as date_parser
 from supabase import create_client, Client
 
-# --- 1. التحقق من مفاتيح الاتصال بـ Supabase ---
+# --- 1. التحقق من مفاتيح الاتصال ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
@@ -21,7 +21,7 @@ except Exception as e:
     print(f"❌ خطأ أثناء الاتصال بـ Supabase: {e}")
     sys.exit(1)
 
-# --- 2. إعدادات البحث المتقدمة باللغات الثلاث ---
+# --- 2. استعلامات متكاملة وموسعة للغات الثلاث ---
 SEARCH_CONFIGS = [
     {
         "lang": "ar",
@@ -58,7 +58,7 @@ SEARCH_CONFIGS = [
 ]
 
 def determine_category_and_importance(title, summary):
-    """تحليل نص الخبر بلغات متعددة لتحديد التصنيف والأهمية تلقائياً"""
+    """تحليل نص الخبر بلغات متعددة لتحديد التصنيف والأهمية"""
     text = f"{title} {summary}".lower()
     
     category = "أخبار عامة"
@@ -70,18 +70,11 @@ def determine_category_and_importance(title, summary):
         "أبي إسحاق", "جمعية", "ملتقى", "محاضرة", "ندوة",
         "association", "séminaire", "conférence", "abou issaq"
     ]
-    # إضافة كلمات تصنيف الاقتصاد
-    economy_kw = [
-        "اقتصاد", "سوق", "تجارة", "استثمار", "تنمية", "ميزانية", "أسعار", "بورصة", "فلاحة", "زراعة", "أسواق",
-        "économie", "commerce", "investissement", "market", "economy", "trade"
-    ]
 
     if any(k in text for k in heritage_kw):
         category = "تراث وثقافة"
     elif any(k in text for k in activity_kw):
         category = "نشاطات الجمعية"
-    elif any(k in text for k in economy_kw):
-        category = "اقتصاد"
 
     importance = "عادي"
     high_kw = [
@@ -93,21 +86,6 @@ def determine_category_and_importance(title, summary):
         importance = "عالي"
 
     return category, importance
-
-def is_relevant_content(title, summary):
-    """
-    تتأكد من أن الكلمة المفتاحية موجودة فعلياً في عنوان الخبر أو ملخصه المباشر، 
-    وليس مجرد إشارة فرعية في التعريف بالكاتب أو الهامش.
-    """
-    text_to_check = f"{title} {summary}".lower()
-    
-    core_keywords = [
-        "غرداية", "ghardaia", "ghardaïa", 
-        "مزاب", "mzab", 
-        "أبي إسحاق", "abou issaq"
-    ]
-    
-    return any(keyword in text_to_check for keyword in core_keywords)
 
 def validate_and_parse_2026_date(raw_date):
     """التحقق الجازم من أن القصاصة تنتمي لعام 2026 حصراً وترجيع صيغة ISO"""
@@ -127,9 +105,9 @@ def fetch_rss(query, params):
     return feedparser.parse(rss_url)
 
 def scrape_and_store():
-    print("🚀 بدء التمشيط المتقدم والدقيق لعام 2026...")
+    print("🚀 بدء التمشيط العميق لعام 2026 باللغات الثلاث (العربية، الفرنسية، الإنجليزية)...")
     
-    # تقسيم السحب على أشهُر سنة 2026
+    # الأشهر لعام 2026 لتفادي حد الـ 100 خبر لكل استعلام
     months_2026 = [
         ("2026-01-01", "2026-01-31"),
         ("2026-02-01", "2026-02-28"),
@@ -146,8 +124,7 @@ def scrape_and_store():
     ]
 
     total_added = 0
-    total_rejected_date = 0
-    total_rejected_irrelevant = 0
+    total_rejected = 0
 
     for config in SEARCH_CONFIGS:
         lang = config["lang"]
@@ -157,8 +134,10 @@ def scrape_and_store():
         print(f"\n🌐 --- بدء المعالجة باللغة [{lang.upper()}] ---")
 
         for q in queries:
+            # 1. جلب التحديثات المباشرة للكلمة المفتاحية
             all_target_queries = [q]
 
+            # 2. إضافة النطاق الشهري لكل كلمة لضمان عدم ضياع الأرشيف
             for start_d, end_d in months_2026:
                 all_target_queries.append(f"{q} after:{start_d} before:{end_d}")
 
@@ -169,23 +148,18 @@ def scrape_and_store():
                     title = entry.get("title", "").strip()
                     link = entry.get("link", "").strip()
                     published_raw = entry.get("published", "").strip()
-                    summary = entry.get("summary", "")
 
-                    # 1. التدقيق في التاريخ (عام 2026 فقط)
+                    # شرط التدقيق: قبول فقط القصاصات التابعة لعام 2026
                     published_iso = validate_and_parse_2026_date(published_raw)
                     if not published_iso:
-                        total_rejected_date += 1
-                        continue
-
-                    # 2. الفلترة الصارمة: استبعاد النتائج التي تذكر الكلمة في التعريف بالكاتب أو الهامش فقط
-                    if not is_relevant_content(title, summary):
-                        total_rejected_irrelevant += 1
+                        total_rejected += 1
                         continue
 
                     source = "صحافة إلكترونية"
                     if "source" in entry and isinstance(entry.source, dict):
                         source = entry.source.get("title", "صحافة إلكترونية")
 
+                    summary = entry.get("summary", "")
                     if not summary and "title_detail" in entry:
                         summary = title
 
@@ -210,9 +184,8 @@ def scrape_and_store():
                             pass
 
     print("\n" + "="*60)
-    print(f"🎉 النتيجة النهائية: تم حفظ وتحديث {total_added} قصاصة دقيقة ومؤكدة لعام 2026 بنجاح!")
-    print(f"🛡️ تم استبعاد {total_rejected_irrelevant} مقال غير مرتبط بالموضوع (وردت الكلمة في تعريف الكاتب).")
-    print(f"🗓️ تم استبعاد {total_rejected_date} مقال لعدم توافق تاريخها مع سنة 2026.")
+    print(f"🎉 النتيجة النهائية: تم حفظ وتحديث {total_added} قصاصة مؤكدة لعام 2026 بنجاح!")
+    print(f"🛡️ تم استبعاد {total_rejected} مقال لعدم توافق تاريخها مع سنة 2026.")
     print("="*60)
 
 if __name__ == "__main__":
