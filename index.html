@@ -392,7 +392,8 @@
 
         // 🟢 إعدادات التصفح الداخلي (Pagination)
         let currentPage = 1;
-        const itemsPerPage = 12; // عدد العناصر في كل صفحة
+        // تم الضبط ليكون 5 أسطر × 3 قصاصات = 15 قصاصة في كل صفحة
+        const itemsPerPage = 15; 
 
         let supabaseClient;
         let allArchiveData = [];
@@ -639,7 +640,7 @@
             // زر السابقة
             html += `
                 <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-                    <button class="page-link" onclick="changePage(${currentPage - 1})"><i class="fa-solid fa-chevron-right"></i>السابق</button>
+                    <button class="page-link" onclick="changePage(${currentPage - 1})"><i class="fa-solid fa-chevron-right"></i> السابق</button>
                 </li>
             `;
 
@@ -659,7 +660,7 @@
             // زر التالي
             html += `
                 <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-                    <button class="page-link" onclick="changePage(${currentPage + 1})">التالي<i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="page-link" onclick="changePage(${currentPage + 1})">التالي <i class="fa-solid fa-chevron-left"></i></button>
                 </li>
             `;
 
@@ -685,7 +686,7 @@
         }
 
         // ============================================================
-        // 4. بناء البطاقات
+        // 4. بناء البطاقات (3 بطاقات في السطر)
         // ============================================================
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
@@ -701,11 +702,13 @@
                 return;
             }
 
+            // col-lg-4 يعطي 3 عناصر في السطر للشاشات الكبيرة
+            // col-md-6 يعطي عنصرين للشاشات المتوسطة
             container.innerHTML = items.map(item => {
                 const issueDate = item[DATE_FIELD] ? new Date(item[DATE_FIELD]).toLocaleDateString('ar-DZ') : 'غير محدد';
 
                 return `
-                <div class="col-md-6 col-lg-4">
+                <div class="col-12 col-md-6 col-lg-4">
                     <div class="card card-clipping p-4">
                         <div>
                             <div class="d-flex justify-content-between align-items-center mb-3">
