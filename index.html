@@ -174,7 +174,20 @@
             border-radius: 50px;
         }
 
-        /* تذييل الصفحة - حقوق النشر */
+        /* تنسيق أزرار التنقل بين الصفحات */
+        .pagination .page-link {
+            color: var(--primary-emerald);
+            border-radius: 8px;
+            margin: 0 3px;
+            font-weight: bold;
+        }
+
+        .pagination .page-item.active .page-link {
+            background-color: var(--primary-emerald);
+            border-color: var(--primary-emerald);
+            color: white;
+        }
+
         footer {
             background: var(--primary-dark);
             color: white;
@@ -236,17 +249,17 @@
                         <div class="row g-3 mb-2">
                             <div class="col-md-4">
                                 <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-magnifying-glass me-1"></i> بحث بالنص</label>
-                                <input type="text" id="filter-search" class="form-control" placeholder="بحث في العنوان أو الملخص..." oninput="applyArchiveFilters()">
+                                <input type="text" id="filter-search" class="form-control" placeholder="بحث في العنوان أو الملخص..." oninput="onFilterChange()">
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-shapes me-1"></i> الموضوع</label>
-                                <select id="filter-category" class="form-select" onchange="applyArchiveFilters()">
+                                <select id="filter-category" class="form-select" onchange="onFilterChange()">
                                     <option value="">كل الموضوعات</option>
                                 </select>
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-layer-group me-1"></i> الأهمية</label>
-                                <select id="filter-importance" class="form-select" onchange="applyArchiveFilters()">
+                                <select id="filter-importance" class="form-select" onchange="onFilterChange()">
                                     <option value="">الكل</option>
                                     <option value="عالي">عالي</option>
                                     <option value="عادي">عادي</option>
@@ -254,7 +267,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-newspaper me-1"></i> المصدر / الصحيفة</label>
-                                <select id="filter-source" class="form-select" onchange="applyArchiveFilters()">
+                                <select id="filter-source" class="form-select" onchange="onFilterChange()">
                                     <option value="">كافة المصادر</option>
                                 </select>
                             </div>
@@ -263,15 +276,15 @@
                         <div class="row g-3 border-top pt-2 mt-2">
                             <div class="col-md-3">
                                 <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-minus me-1"></i> تاريخ الصدور (من)</label>
-                                <input type="date" id="filter-date-from" class="form-control" onchange="applyArchiveFilters()">
+                                <input type="date" id="filter-date-from" class="form-control" onchange="onFilterChange()">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-bold text-secondary small"><i class="fa-regular fa-calendar-plus me-1"></i> تاريخ الصدور (إلى)</label>
-                                <input type="date" id="filter-date-to" class="form-control" onchange="applyArchiveFilters()">
+                                <input type="date" id="filter-date-to" class="form-control" onchange="onFilterChange()">
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
-                                <select id="filter-sort" class="form-select" onchange="applyArchiveFilters()">
+                                <select id="filter-sort" class="form-select" onchange="onFilterChange()">
                                     <option value="newest_published">حسب تاريخ الصدور (الأحدث أولاً)</option>
                                     <option value="oldest_published">حسب تاريخ الصدور (الأقدَم أولاً)</option>
                                     <option value="importance">حسب الأهمية</option>
@@ -293,6 +306,12 @@
                     </div>
 
                     <div id="archive-grid" class="row g-4"></div>
+
+                    <!-- شريط التنقل بين الصفحات (Pagination) -->
+                    <nav class="mt-5" id="pagination-wrapper" style="display: none;">
+                        <ul class="pagination justify-content-center" id="pagination-container"></ul>
+                    </nav>
+
                 </div>
 
                 <!-- تبويب تحليل المعلومات والإحصائيات -->
@@ -350,7 +369,7 @@
         </div>
     </div>
 
-    <!-- تذييل الصفحة مع حفظ الحقوق -->
+    <!-- تذييل الصفحة -->
     <footer class="text-center">
         <div class="container">
             <p class="mb-0 fw-bold">جميع الحقوق محفوظة © جمعية الشيخ أبي إسحاق إبراهيم أطفيش لخدمة التراث - غرداية</p>
@@ -363,16 +382,17 @@
     
     <script>
         // ============================================================
-        // ⚙️ الإعدادات - استبدل القيمتين التاليتين ببياناتك الحقيقية
+        // ⚙️ الإعدادات
         // ============================================================
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
 
-        // 🟢 العمود المعتمد لتاريخ النشر
         const DATE_FIELD = "published_date"; 
+        const PAGE_SIZE = 500; // جلب البيانات من Supabase
 
-        // 🟢 حجم كل دفعة عند الجلب (يجب أن يكون ≤ Max Rows في Supabase)
-        const PAGE_SIZE = 500;
+        // 🟢 إعدادات التصفح الداخلي (Pagination)
+        let currentPage = 1;
+        const itemsPerPage = 12; // عدد العناصر في كل صفحة
 
         let supabaseClient;
         let allArchiveData = [];
@@ -391,7 +411,7 @@
         });
 
         // ============================================================
-        // ✅ دالة مساعدة لجلب كل الصفوف مع ترقيم الصفحات
+        // ✅ جلب الصفوف من Supabase
         // ============================================================
         async function fetchAllRows(buildQuery, pageSize = PAGE_SIZE) {
             let allData = [];
@@ -405,13 +425,11 @@
 
                 if (totalCount === null && typeof count === 'number') {
                     totalCount = count;
-                    console.log(`📊 العدد الكلي في Supabase: ${totalCount}`);
                 }
 
                 if (!data || data.length === 0) break;
 
                 allData = allData.concat(data);
-                console.log(`✅ جُلب ${data.length} صفاً (بدءاً من ${from}). المجموع حتى الآن: ${allData.length}`);
 
                 if (totalCount !== null && allData.length >= totalCount) break;
                 if (data.length < pageSize) break;
@@ -477,7 +495,7 @@
         // 2. جلب الأرشيف الكامل
         // ============================================================
         async function loadArchiveClippings() {
-            if (allArchiveData.length > 0) return; // تم الجلب مسبقاً
+            if (allArchiveData.length > 0) return;
 
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
@@ -487,7 +505,7 @@
                 return;
             }
 
-            let data, totalCount;
+            let data;
             try {
                 const result = await fetchAllRows(() =>
                     supabaseClient
@@ -497,13 +515,10 @@
                         .order('id', { ascending: false })
                 );
                 data = result.data;
-                totalCount = result.totalCount;
             } catch (error) {
                 archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-5">خطأ في جلب البيانات: ${error.message}</div>`;
                 return;
             }
-
-            console.log(`🎯 الأرشيف: تم جلب ${data.length} من أصل ${totalCount ?? '؟'}`);
 
             allArchiveData = data;
             populateDropdownFilters(data);
@@ -528,8 +543,14 @@
             });
         }
 
+        // دالة التنبيه عند تغيير الفلتر لإرجاع الصفحة إلى 1
+        function onFilterChange() {
+            currentPage = 1;
+            applyArchiveFilters();
+        }
+
         // ============================================================
-        // 3. التصفية والفرز
+        // 3. التصفية، الفرز، وترقيم الصفحات
         // ============================================================
         function applyArchiveFilters() {
             let filtered = [...allArchiveData];
@@ -569,6 +590,7 @@
                 });
             }
 
+            // الترتيب
             if (sortValue === "newest_published") {
                 filtered.sort((a, b) => new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0));
             } else if (sortValue === "oldest_published") {
@@ -587,7 +609,67 @@
             }
 
             document.getElementById("archive-count").innerText = `${filtered.length} قصاصة`;
-            renderGrid(filtered, "archive-grid");
+
+            // 🟢 تقسيم النتائج وإظهار الصفحة الحالية
+            const totalPages = Math.ceil(filtered.length / itemsPerPage);
+            if (currentPage > totalPages) currentPage = 1;
+
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const paginatedItems = filtered.slice(startIndex, startIndex + itemsPerPage);
+
+            renderGrid(paginatedItems, "archive-grid");
+            renderPagination(totalPages);
+        }
+
+        // ============================================================
+        // 🟢 بناء عناصر أزرار التنقل Pagination
+        // ============================================================
+        function renderPagination(totalPages) {
+            const paginationWrapper = document.getElementById("pagination-wrapper");
+            const paginationContainer = document.getElementById("pagination-container");
+
+            if (totalPages <= 1) {
+                paginationWrapper.style.display = "none";
+                return;
+            }
+
+            paginationWrapper.style.display = "block";
+            let html = '';
+
+            // زر السابقة
+            html += `
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <button class="page-link" onclick="changePage(${currentPage - 1})"><i class="fa-solid fa-chevron-right"></i>السابق</button>
+                </li>
+            `;
+
+            // أرقام الصفحات
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+                    html += `
+                        <li class="page-item ${i === currentPage ? 'active' : ''}">
+                            <button class="page-link" onclick="changePage(${i})">${i}</button>
+                        </li>
+                    `;
+                } else if (i === currentPage - 3 || i === currentPage + 3) {
+                    html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+            }
+
+            // زر التالي
+            html += `
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <button class="page-link" onclick="changePage(${currentPage + 1})">التالي<i class="fa-solid fa-chevron-left"></i></button>
+                </li>
+            `;
+
+            paginationContainer.innerHTML = html;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            applyArchiveFilters();
+            window.scrollTo({ top: document.getElementById("archive-content").offsetTop - 20, behavior: 'smooth' });
         }
 
         function resetArchiveFilters() {
@@ -598,6 +680,7 @@
             document.getElementById("filter-date-from").value = "";
             document.getElementById("filter-date-to").value = "";
             document.getElementById("filter-sort").value = "newest_published";
+            currentPage = 1;
             applyArchiveFilters();
         }
 
@@ -672,64 +755,54 @@
                 sources[src] = (sources[src] || 0) + 1;
 
                 if (item[DATE_FIELD]) {
-                    const monthKey = item[DATE_FIELD].substring(0, 7);
-                    dates[monthKey] = (dates[monthKey] || 0) + 1;
+                    const dateStr = item[DATE_FIELD].split('T')[0];
+                    dates[dateStr] = (dates[dateStr] || 0) + 1;
                 }
             });
 
+            renderCharts(categories, importance, sources, dates);
+        }
+
+        function renderCharts(categories, importance, sources, dates) {
             if (chartCategoryInst) chartCategoryInst.destroy();
             if (chartImportanceInst) chartImportanceInst.destroy();
             if (chartSourceInst) chartSourceInst.destroy();
             if (chartDateInst) chartDateInst.destroy();
 
+            // رسم مخطط الموضوعات
             chartCategoryInst = new Chart(document.getElementById('chart-category'), {
                 type: 'pie',
                 data: {
                     labels: Object.keys(categories),
-                    datasets: [{
-                        data: Object.values(categories),
-                        backgroundColor: ['#1b4332', '#d4af37', '#2d6a4f', '#52b788', '#b7e4c7', '#081c15']
-                    }]
+                    datasets: [{ data: Object.values(categories), backgroundColor: ['#1b4332', '#d4af37', '#2d6a4f', '#52b788', '#74c69d'] }]
                 }
             });
 
+            // رسم مخطط الأهمية
             chartImportanceInst = new Chart(document.getElementById('chart-importance'), {
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(importance),
-                    datasets: [{
-                        data: Object.values(importance),
-                        backgroundColor: ['#dc3545', '#198754']
-                    }]
+                    datasets: [{ data: Object.values(importance), backgroundColor: ['#dc3545', '#6c757d'] }]
                 }
             });
 
+            // رسم مخطط المصادر
             chartSourceInst = new Chart(document.getElementById('chart-source'), {
                 type: 'bar',
                 data: {
-                    labels: Object.keys(sources),
-                    datasets: [{
-                        label: 'عدد القصاصات',
-                        data: Object.values(sources),
-                        backgroundColor: '#d4af37'
-                    }]
-                },
-                options: { plugins: { legend: { display: false } } }
+                    labels: Object.keys(sources).slice(0, 5),
+                    datasets: [{ label: 'عدد القصاصات', data: Object.values(sources).slice(0, 5), backgroundColor: '#1b4332' }]
+                }
             });
 
-            const sortedDateKeys = Object.keys(dates).sort();
+            // رسم التوزيع الزمني
+            const sortedDates = Object.keys(dates).sort();
             chartDateInst = new Chart(document.getElementById('chart-date'), {
                 type: 'line',
                 data: {
-                    labels: sortedDateKeys,
-                    datasets: [{
-                        label: 'عدد القصاصات',
-                        data: sortedDateKeys.map(k => dates[k]),
-                        borderColor: '#0f2d22',
-                        backgroundColor: 'rgba(15, 45, 34, 0.1)',
-                        fill: true,
-                        tension: 0.3
-                    }]
+                    labels: sortedDates,
+                    datasets: [{ label: 'القصاصات', data: sortedDates.map(d => dates[d]), borderColor: '#d4af37', fill: false }]
                 }
             });
         }
