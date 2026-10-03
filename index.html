@@ -23,7 +23,6 @@
             --bg-light: #f4f6f8;
             --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
             --hover-shadow: 0 15px 35px rgba(27, 67, 50, 0.12);
-            --danger-red: #d90429;
         }
 
         body {
@@ -110,7 +109,7 @@
         }
 
         .card-clipping {
-            border: 1px solid transparent;
+            border: none;
             border-radius: 18px;
             background: white;
             box-shadow: var(--card-shadow);
@@ -119,22 +118,11 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            position: relative;
         }
 
         .card-clipping:hover {
             transform: translateY(-6px);
             box-shadow: var(--hover-shadow);
-        }
-
-        .card-clipping.critical-event {
-            background: #fff5f5;
-            border: 2px solid var(--danger-red);
-            box-shadow: 0 8px 25px rgba(217, 4, 41, 0.15);
-        }
-
-        .card-clipping.critical-event:hover {
-            box-shadow: 0 15px 35px rgba(217, 4, 41, 0.25);
         }
 
         .card-tag-category {
@@ -147,8 +135,8 @@
         }
 
         .card-tag-importance-عالي {
-            background-color: rgba(255, 152, 0, 0.15);
-            color: #e65100;
+            background-color: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
             font-weight: 700;
             font-size: 0.8rem;
             padding: 0.35rem 0.8rem;
@@ -162,23 +150,6 @@
             font-size: 0.8rem;
             padding: 0.35rem 0.8rem;
             border-radius: 8px;
-        }
-
-        .card-tag-importance-أحداث-خطيرة,
-        .card-tag-importance-خطير {
-            background-color: var(--danger-red);
-            color: white;
-            font-weight: 800;
-            font-size: 0.8rem;
-            padding: 0.35rem 0.8rem;
-            border-radius: 8px;
-            animation: pulse-danger 2s infinite;
-        }
-
-        @keyframes pulse-danger {
-            0% { box-shadow: 0 0 0 0 rgba(217, 4, 41, 0.4); }
-            70% { box-shadow: 0 0 0 8px rgba(217, 4, 41, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(217, 4, 41, 0); }
         }
 
         .btn-read-more {
@@ -195,15 +166,6 @@
             color: var(--primary-dark);
         }
 
-        .btn-read-more.btn-danger-custom {
-            background-color: var(--danger-red);
-        }
-
-        .btn-read-more.btn-danger-custom:hover {
-            background-color: #b8001f;
-            color: white;
-        }
-
         .counter-badge {
             background: var(--primary-dark);
             color: var(--accent-gold);
@@ -212,12 +174,12 @@
             border-radius: 50px;
         }
 
+        /* تنسيق أزرار التنقل بين الصفحات */
         .pagination .page-link {
             color: var(--primary-emerald);
             border-radius: 8px;
             margin: 0 3px;
             font-weight: bold;
-            cursor: pointer;
         }
 
         .pagination .page-item.active .page-link {
@@ -293,14 +255,12 @@
                                 <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-shapes me-1"></i> الموضوع</label>
                                 <select id="filter-category" class="form-select" onchange="onFilterChange()">
                                     <option value="">كل الموضوعات</option>
-                                    <option value="أحداث خطيرة">🚨 أحداث خطيرة</option>
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-layer-group me-1"></i> الأهمية / درجة الخطورة</label>
+                                <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-layer-group me-1"></i> الأهمية</label>
                                 <select id="filter-importance" class="form-select" onchange="onFilterChange()">
                                     <option value="">الكل</option>
-                                    <option value="أحداث خطيرة">🚨 أحداث خطيرة</option>
                                     <option value="عالي">عالي</option>
                                     <option value="عادي">عادي</option>
                                 </select>
@@ -326,7 +286,6 @@
                                 <label class="form-label fw-bold text-secondary small"><i class="fa-solid fa-arrow-down-short-wide me-1"></i> طريقة الترتيب</label>
                                 <select id="filter-sort" class="form-select" onchange="onFilterChange()">
                                     <option value="newest_published">حسب تاريخ الصدور (الأحدث أولاً)</option>
-                                    <option value="critical_first">🚨 الأحداث الخطيرة أولاً</option>
                                     <option value="oldest_published">حسب تاريخ الصدور (الأقدَم أولاً)</option>
                                     <option value="importance">حسب الأهمية</option>
                                     <option value="source">أبجدياً حسب المصدر</option>
@@ -348,7 +307,7 @@
 
                     <div id="archive-grid" class="row g-4"></div>
 
-                    <!-- شريط التنقل بين الصفحات -->
+                    <!-- شريط التنقل بين الصفحات (Pagination) -->
                     <nav class="mt-5" id="pagination-wrapper" style="display: none;">
                         <ul class="pagination justify-content-center" id="pagination-container"></ul>
                     </nav>
@@ -358,25 +317,19 @@
                 <!-- تبويب تحليل المعلومات والإحصائيات -->
                 <div class="tab-pane fade" id="analytics-content" role="tabpanel">
                     <div class="row g-4 mb-4 text-center">
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <div class="filter-card">
                                 <span class="text-muted small fw-bold">إجمالي القصاصات</span>
                                 <h2 class="fw-bold text-dark mt-2 mb-0" id="stat-total-count">0</h2>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="filter-card border border-danger">
-                                <span class="text-danger small fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> أحداث خطيرة</span>
-                                <h2 class="fw-bold text-danger mt-2 mb-0" id="stat-critical-count">0</h2>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <div class="filter-card">
                                 <span class="text-muted small fw-bold">قصاصات عالية الأهمية</span>
-                                <h2 class="fw-bold text-warning mt-2 mb-0" id="stat-high-count">0</h2>
+                                <h2 class="fw-bold text-danger mt-2 mb-0" id="stat-high-count">0</h2>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <div class="filter-card">
                                 <span class="text-muted small fw-bold">عدد المصادر</span>
                                 <h2 class="fw-bold text-success mt-2 mb-0" id="stat-sources-count">0</h2>
@@ -393,7 +346,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="filter-card">
-                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-doughnut me-2 text-danger"></i> التوزيع حسب درجة الخطورة والأهمية</h5>
+                                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-chart-doughnut me-2 text-danger"></i> التوزيع حسب الأهمية</h5>
                                 <canvas id="chart-importance" style="max-height: 280px;"></canvas>
                             </div>
                         </div>
@@ -424,21 +377,28 @@
         </div>
     </footer>
 
+    <!-- JS Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        // ============================================================
+        // ⚙️ الإعدادات
+        // ============================================================
         const SUPABASE_URL = "https://sixvgxtoizjxprkpkjki.supabase.co"; 
         const SUPABASE_KEY = "sb_publishable_jx6mv6vokG8gydCt1Xzt5Q_1rP6xH5p"; 
 
         const DATE_FIELD = "published_date"; 
-        const PAGE_SIZE = 500; 
+        const PAGE_SIZE = 500; // جلب البيانات من Supabase
 
+        // 🟢 إعدادات التصفح الداخلي (Pagination)
         let currentPage = 1;
-        const itemsPerPage = 15; // 5 أسطر × 3 قصاصات
+        // تم الضبط ليكون 5 أسطر × 3 قصاصات = 15 قصاصة في كل صفحة
+        const itemsPerPage = 15; 
 
         let supabaseClient;
         let allArchiveData = [];
 
+        // متغيرات المخططات البيانية
         let chartCategoryInst, chartImportanceInst, chartSourceInst, chartDateInst;
 
         try {
@@ -451,6 +411,9 @@
             loadTodayClippings();
         });
 
+        // ============================================================
+        // ✅ جلب الصفوف من Supabase
+        // ============================================================
         async function fetchAllRows(buildQuery, pageSize = PAGE_SIZE) {
             let allData = [];
             let from = 0;
@@ -458,22 +421,37 @@
 
             while (true) {
                 const { data, error, count } = await buildQuery().range(from, from + pageSize - 1);
+
                 if (error) throw error;
-                if (totalCount === null && typeof count === 'number') totalCount = count;
+
+                if (totalCount === null && typeof count === 'number') {
+                    totalCount = count;
+                }
+
                 if (!data || data.length === 0) break;
 
                 allData = allData.concat(data);
+
                 if (totalCount !== null && allData.length >= totalCount) break;
                 if (data.length < pageSize) break;
 
                 from += pageSize;
             }
+
             return { data: allData, totalCount };
         }
 
+        // ============================================================
+        // 1. جلب قصاصات اليوم
+        // ============================================================
         async function loadTodayClippings() {
             const todayContainer = document.getElementById("today-grid");
             todayContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
+
+            if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
+                todayContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى إدخال روابط SUPABASE_URL و SUPABASE_KEY الصحيحة.</div>`;
+                return;
+            }
 
             const now = new Date();
             const year = now.getFullYear();
@@ -503,6 +481,7 @@
                         <div class="p-5 bg-white rounded-4 shadow-sm">
                             <i class="fa-regular fa-calendar-xmark fa-4x text-warning mb-3"></i>
                             <h5 class="fw-bold text-dark">لا توجد قصاصات جديدة صُدرت بتاريخ اليوم (${todayStr})</h5>
+                            <p class="text-muted small mb-0">يرجى الانتقال لتبويب الأرشيف لاستعراض القصاصات السابقة.</p>
                         </div>
                     </div>`;
                 document.getElementById("today-count").innerText = "0 قصاصة";
@@ -513,11 +492,19 @@
             renderGrid(data, "today-grid");
         }
 
+        // ============================================================
+        // 2. جلب الأرشيف الكامل
+        // ============================================================
         async function loadArchiveClippings() {
             if (allArchiveData.length > 0) return;
 
             const archiveContainer = document.getElementById("archive-grid");
             archiveContainer.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div></div>';
+
+            if (!SUPABASE_URL.includes("supabase.co") || SUPABASE_KEY.includes("YOUR_SUPABASE")) {
+                archiveContainer.innerHTML = `<div class="col-12 text-center text-danger py-4">⚠️ يرجى إدخال روابط SUPABASE_URL و SUPABASE_KEY الصحيحة.</div>`;
+                return;
+            }
 
             let data;
             try {
@@ -551,19 +538,21 @@
                 sourceSelect.innerHTML += `<option value="${src}">${src}</option>`;
             });
 
-            categorySelect.innerHTML = '<option value="">كل الموضوعات</option><option value="أحداث خطيرة">🚨 أحداث خطيرة</option>';
+            categorySelect.innerHTML = '<option value="">كل الموضوعات</option>';
             categories.forEach(cat => {
-                if (cat !== 'أحداث خطيرة') {
-                    categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-                }
+                categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
             });
         }
 
+        // دالة التنبيه عند تغيير الفلتر لإرجاع الصفحة إلى 1
         function onFilterChange() {
             currentPage = 1;
             applyArchiveFilters();
         }
 
+        // ============================================================
+        // 3. التصفية، الفرز، وترقيم الصفحات
+        // ============================================================
         function applyArchiveFilters() {
             let filtered = [...allArchiveData];
 
@@ -603,20 +592,17 @@
             }
 
             // الترتيب
-            if (sortValue === "critical_first") {
-                filtered.sort((a, b) => {
-                    const isCriticalA = (a.importance === "أحداث خطيرة" || a.category === "أحداث خطيرة") ? 1 : 0;
-                    const isCriticalB = (b.importance === "أحداث خطيرة" || b.category === "أحداث خطيرة") ? 1 : 0;
-                    if (isCriticalA !== isCriticalB) return isCriticalB - isCriticalA;
-                    return new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0);
-                });
-            } else if (sortValue === "newest_published") {
+            if (sortValue === "newest_published") {
                 filtered.sort((a, b) => new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0));
             } else if (sortValue === "oldest_published") {
                 filtered.sort((a, b) => new Date(a[DATE_FIELD] || 0) - new Date(b[DATE_FIELD] || 0));
             } else if (sortValue === "importance") {
-                const weight = (val) => val === "أحداث خطيرة" ? 3 : val === "عالي" ? 2 : 1;
-                filtered.sort((a, b) => weight(b.importance) - weight(a.importance));
+                filtered.sort((a, b) => {
+                    const aImp = a.importance === "عالي" ? 1 : 0;
+                    const bImp = b.importance === "عالي" ? 1 : 0;
+                    if (aImp !== bImp) return bImp - aImp;
+                    return new Date(b[DATE_FIELD] || 0) - new Date(a[DATE_FIELD] || 0);
+                });
             } else if (sortValue === "source") {
                 filtered.sort((a, b) => (a.source || '').localeCompare(b.source || '', 'ar'));
             } else if (sortValue === "title") {
@@ -625,6 +611,7 @@
 
             document.getElementById("archive-count").innerText = `${filtered.length} قصاصة`;
 
+            // 🟢 تقسيم النتائج وإظهار الصفحة الحالية
             const totalPages = Math.ceil(filtered.length / itemsPerPage);
             if (currentPage > totalPages) currentPage = 1;
 
@@ -635,6 +622,9 @@
             renderPagination(totalPages);
         }
 
+        // ============================================================
+        // 🟢 بناء عناصر أزرار التنقل Pagination
+        // ============================================================
         function renderPagination(totalPages) {
             const paginationWrapper = document.getElementById("pagination-wrapper");
             const paginationContainer = document.getElementById("pagination-container");
@@ -647,12 +637,14 @@
             paginationWrapper.style.display = "block";
             let html = '';
 
+            // زر السابقة
             html += `
                 <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
                     <button class="page-link" onclick="changePage(${currentPage - 1})"><i class="fa-solid fa-chevron-right"></i> السابق</button>
                 </li>
             `;
 
+            // أرقام الصفحات
             for (let i = 1; i <= totalPages; i++) {
                 if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
                     html += `
@@ -665,6 +657,7 @@
                 }
             }
 
+            // زر التالي
             html += `
                 <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
                     <button class="page-link" onclick="changePage(${currentPage + 1})">التالي <i class="fa-solid fa-chevron-left"></i></button>
@@ -692,6 +685,9 @@
             applyArchiveFilters();
         }
 
+        // ============================================================
+        // 4. بناء البطاقات (3 بطاقات في السطر)
+        // ============================================================
         function renderGrid(items, targetContainerId) {
             const container = document.getElementById(targetContainerId);
             
@@ -706,144 +702,110 @@
                 return;
             }
 
+            // col-lg-4 يعطي 3 عناصر في السطر للشاشات الكبيرة
+            // col-md-6 يعطي عنصرين للشاشات المتوسطة
             container.innerHTML = items.map(item => {
-                const issueDate = item[DATE_FIELD] ? new Date(item[DATE_FIELD]).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'long', day: 'numeric' }) : 'تاريخ غير معروف';
-                const isCritical = item.importance === "أحداث خطيرة" || item.category === "أحداث خطيرة";
-                const cardClass = isCritical ? "card-clipping critical-event" : "card-clipping";
-                const btnClass = isCritical ? "btn-read-more btn-danger-custom" : "btn-read-more";
+                const issueDate = item[DATE_FIELD] ? new Date(item[DATE_FIELD]).toLocaleDateString('ar-DZ') : 'غير محدد';
 
                 return `
-                    <div class="col-md-4 mb-3">
-                        <div class="${cardClass} p-4">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="card-tag-category"><i class="fa-solid fa-tag me-1"></i>${item.category || 'عام'}</span>
-                                    <span class="card-tag-importance-${(item.importance || 'عادي').replace(/\s+/g, '-')}">${item.importance || 'عادي'}</span>
-                                </div>
-                                <h5 class="fw-bold text-dark mb-2" style="line-height: 1.5;">${item.title}</h5>
-                                <p class="text-muted small mb-3" style="font-size: 0.9rem; max-height: 4.5em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
-                                    ${item.summary || 'لا يوجد ملخص متوفر لهذه القصاصة.'}
-                                </p>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card card-clipping p-4">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="card-tag-category"><i class="fa-solid fa-tag me-1"></i> ${item.category || 'أخبار عامة'}</span>
+                                <span class="card-tag-importance-${item.importance || 'عادي'}">أهمية: ${item.importance || 'عادي'}</span>
                             </div>
-                            <div>
-                                <hr class="my-3 text-muted opacity-25">
-                                <div class="d-flex justify-content-between align-items-center mb-3 text-secondary small">
-                                    <span><i class="fa-solid fa-newspaper me-1"></i>${item.source || 'مصدر غير محدد'}</span>
-                                    <span><i class="fa-regular fa-clock me-1"></i>${issueDate}</span>
-                                </div>
-                                <a href="${item.link}" target="_blank" class="btn ${btnClass} w-100 text-center text-decoration-none">
-                                    <i class="fa-solid fa-up-right-from-square me-1"></i> قراءة الخبر الكامل
-                                </a>
+                            <h5 class="fw-bold text-dark mb-3" style="font-size: 1.15rem; line-height: 1.6;">${item.title}</h5>
+                            <p class="text-muted small mb-4 opacity-75" style="line-height: 1.6;">${item.summary ? item.summary.substring(0, 120) + '...' : 'لا يوجد ملخص متاح.'}</p>
+                        </div>
+                        <div>
+                            <hr class="my-3 opacity-10">
+                            <div class="d-flex justify-content-between align-items-center small text-secondary mb-3">
+                                <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source}</span>
+                                <span><i class="fa-regular fa-calendar me-1"></i> الصدور: ${issueDate}</span>
                             </div>
+                            <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="btn btn-read-more w-100 text-decoration-none text-center">
+                                قراءة الخبر من المصدر <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
+                            </a>
                         </div>
                     </div>
-                `;
-            }).join('');
+                </div>
+            `}).join('');
         }
 
+        // ============================================================
+        // 5. تحليل البيانات والرسوم البيانية
+        // ============================================================
         async function loadAnalyticsData() {
             if (allArchiveData.length === 0) {
                 await loadArchiveClippings();
             }
 
-            const total = allArchiveData.length;
-            const critical = allArchiveData.filter(i => i.importance === "أحداث خطيرة" || i.category === "أحداث خطيرة").length;
-            const high = allArchiveData.filter(i => i.importance === "عالي").length;
-            const sources = new Set(allArchiveData.map(i => i.source)).size;
+            document.getElementById("stat-total-count").innerText = allArchiveData.length;
+            document.getElementById("stat-high-count").innerText = allArchiveData.filter(i => i.importance === "عالي").length;
+            document.getElementById("stat-sources-count").innerText = new Set(allArchiveData.map(i => i.source).filter(Boolean)).size;
 
-            document.getElementById("stat-total-count").innerText = total;
-            document.getElementById("stat-critical-count").innerText = critical;
-            document.getElementById("stat-high-count").innerText = high;
-            document.getElementById("stat-sources-count").innerText = sources;
+            const categories = {}, importance = {}, sources = {}, dates = {};
 
-            renderAnalyticsCharts();
+            allArchiveData.forEach(item => {
+                const cat = item.category || 'عام';
+                categories[cat] = (categories[cat] || 0) + 1;
+
+                const imp = item.importance || 'عادي';
+                importance[imp] = (importance[imp] || 0) + 1;
+
+                const src = item.source || 'غير محدد';
+                sources[src] = (sources[src] || 0) + 1;
+
+                if (item[DATE_FIELD]) {
+                    const dateStr = item[DATE_FIELD].split('T')[0];
+                    dates[dateStr] = (dates[dateStr] || 0) + 1;
+                }
+            });
+
+            renderCharts(categories, importance, sources, dates);
         }
 
-        function renderAnalyticsCharts() {
+        function renderCharts(categories, importance, sources, dates) {
             if (chartCategoryInst) chartCategoryInst.destroy();
             if (chartImportanceInst) chartImportanceInst.destroy();
             if (chartSourceInst) chartSourceInst.destroy();
             if (chartDateInst) chartDateInst.destroy();
 
-            // 1. حسب الموضوع
-            const catCounts = {};
-            allArchiveData.forEach(i => {
-                const cat = i.category || 'عام';
-                catCounts[cat] = (catCounts[cat] || 0) + 1;
-            });
-
+            // رسم مخطط الموضوعات
             chartCategoryInst = new Chart(document.getElementById('chart-category'), {
                 type: 'pie',
                 data: {
-                    labels: Object.keys(catCounts),
-                    datasets: [{
-                        data: Object.values(catCounts),
-                        backgroundColor: ['#1b4332', '#d4af37', '#d90429', '#2b2b2b', '#17a2b8', '#ffc107']
-                    }]
+                    labels: Object.keys(categories),
+                    datasets: [{ data: Object.values(categories), backgroundColor: ['#1b4332', '#d4af37', '#2d6a4f', '#52b788', '#74c69d'] }]
                 }
             });
 
-            // 2. حسب الأهمية
-            const impCounts = {};
-            allArchiveData.forEach(i => {
-                const imp = i.importance || 'عادي';
-                impCounts[imp] = (impCounts[imp] || 0) + 1;
-            });
-
+            // رسم مخطط الأهمية
             chartImportanceInst = new Chart(document.getElementById('chart-importance'), {
                 type: 'doughnut',
                 data: {
-                    labels: Object.keys(impCounts),
-                    datasets: [{
-                        data: Object.values(impCounts),
-                        backgroundColor: ['#6c757d', '#e65100', '#d90429', '#1b4332']
-                    }]
+                    labels: Object.keys(importance),
+                    datasets: [{ data: Object.values(importance), backgroundColor: ['#dc3545', '#6c757d'] }]
                 }
             });
 
-            // 3. حسب المصادر
-            const srcCounts = {};
-            allArchiveData.forEach(i => {
-                const src = i.source || 'غير معروف';
-                srcCounts[src] = (srcCounts[src] || 0) + 1;
-            });
-
-            const topSources = Object.entries(srcCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-
+            // رسم مخطط المصادر
             chartSourceInst = new Chart(document.getElementById('chart-source'), {
                 type: 'bar',
                 data: {
-                    labels: topSources.map(s => s[0]),
-                    datasets: [{
-                        label: 'عدد القصاصات',
-                        data: topSources.map(s => s[1]),
-                        backgroundColor: '#1b4332'
-                    }]
-                },
-                options: { plugins: { legend: { display: false } } }
-            });
-
-            // 4. أحدث الأشهر
-            const dateCounts = {};
-            allArchiveData.forEach(i => {
-                if (i[DATE_FIELD]) {
-                    const m = i[DATE_FIELD].substring(0, 7);
-                    dateCounts[m] = (dateCounts[m] || 0) + 1;
+                    labels: Object.keys(sources).slice(0, 5),
+                    datasets: [{ label: 'عدد القصاصات', data: Object.values(sources).slice(0, 5), backgroundColor: '#1b4332' }]
                 }
             });
 
-            const sortedDates = Object.entries(dateCounts).sort().slice(-6);
-
+            // رسم التوزيع الزمني
+            const sortedDates = Object.keys(dates).sort();
             chartDateInst = new Chart(document.getElementById('chart-date'), {
                 type: 'line',
                 data: {
-                    labels: sortedDates.map(d => d[0]),
-                    datasets: [{
-                        label: 'القصاصات',
-                        data: sortedDates.map(d => d[1]),
-                        borderColor: '#d4af37',
-                        fill: false
-                    }]
+                    labels: sortedDates,
+                    datasets: [{ label: 'القصاصات', data: sortedDates.map(d => dates[d]), borderColor: '#d4af37', fill: false }]
                 }
             });
         }
