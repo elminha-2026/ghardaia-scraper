@@ -127,7 +127,6 @@
             box-shadow: var(--hover-shadow);
         }
 
-        /* 🚨 تمييز الأحداث الخطيرة */
         .card-clipping.critical-event {
             background: #fff5f5;
             border: 2px solid var(--danger-red);
@@ -165,7 +164,6 @@
             border-radius: 8px;
         }
 
-        /* شارة حدث خطير */
         .card-tag-importance-أحداث-خطيرة,
         .card-tag-importance-خطير {
             background-color: var(--danger-red);
@@ -219,6 +217,7 @@
             border-radius: 8px;
             margin: 0 3px;
             font-weight: bold;
+            cursor: pointer;
         }
 
         .pagination .page-item.active .page-link {
@@ -668,7 +667,7 @@
 
             html += `
                 <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-                    <button class="page-link" onclick="changePage(${page + 1})">التالي <i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="page-link" onclick="changePage(${currentPage + 1})">التالي <i class="fa-solid fa-chevron-left"></i></button>
                 </li>
             `;
 
@@ -708,41 +707,38 @@
             }
 
             container.innerHTML = items.map(item => {
-                const issueDate = item[DATE_FIELD] ? new Date(item[DATE_FIELD]).toLocaleDateString('ar-DZ') : 'غير محدد';
-                
-                // التحقق مما إذا كانت القصاصة حدثاً خطيراً
-                const isCritical = item.importance === "أحداث خطيرة" || item.category === "أحداث خطيرة" || item.importance === "خطير";
-                const cardClass = isCritical ? "critical-event" : "";
-                const importanceTagClass = isCritical ? "card-tag-importance-أحداث-خطيرة" : `card-tag-importance-${item.importance || 'عادي'}`;
-                const importanceLabel = isCritical ? '<i class="fa-solid fa-triangle-exclamation me-1"></i> حدث خطير' : `أهمية: ${item.importance || 'عادي'}`;
-                const btnClass = isCritical ? "btn-danger-custom" : "";
+                const issueDate = item[DATE_FIELD] ? new Date(item[DATE_FIELD]).toLocaleDateString('ar-DZ', { year: 'numeric', month: 'long', day: 'numeric' }) : 'تاريخ غير معروف';
+                const isCritical = item.importance === "أحداث خطيرة" || item.category === "أحداث خطيرة";
+                const cardClass = isCritical ? "card-clipping critical-event" : "card-clipping";
+                const btnClass = isCritical ? "btn-read-more btn-danger-custom" : "btn-read-more";
 
                 return `
-                <div class="col-12 col-md-6 col-lg-4">
-                    <div class="card card-clipping p-4 ${cardClass}">
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <span class="card-tag-category"><i class="fa-solid fa-tag me-1"></i> ${item.category || 'أخبار عامة'}</span>
-                                <span class="${importanceTagClass}">${importanceLabel}</span>
+                    <div class="col-md-4 mb-3">
+                        <div class="${cardClass} p-4">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="card-tag-category"><i class="fa-solid fa-tag me-1"></i>${item.category || 'عام'}</span>
+                                    <span class="card-tag-importance-${(item.importance || 'عادي').replace(/\s+/g, '-')}">${item.importance || 'عادي'}</span>
+                                </div>
+                                <h5 class="fw-bold text-dark mb-2" style="line-height: 1.5;">${item.title}</h5>
+                                <p class="text-muted small mb-3" style="font-size: 0.9rem; max-height: 4.5em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">
+                                    ${item.summary || 'لا يوجد ملخص متوفر لهذه القصاصة.'}
+                                </p>
                             </div>
-                            <h5 class="fw-bold text-dark mb-3" style="font-size: 1.15rem; line-height: 1.6;">
-                                ${isCritical ? '<i class="fa-solid fa-circle-exclamation text-danger me-1"></i> ' : ''}${item.title}
-                            </h5>
-                            <p class="text-muted small mb-4 opacity-75" style="line-height: 1.6;">${item.summary ? item.summary.substring(0, 120) + '...' : 'لا يوجد ملخص متاح.'}</p>
-                        </div>
-                        <div>
-                            <hr class="my-3 opacity-10">
-                            <div class="d-flex justify-content-between align-items-center small text-secondary mb-3">
-                                <span class="fw-bold"><i class="fa-regular fa-newspaper me-1 text-success"></i> ${item.source}</span>
-                                <span><i class="fa-regular fa-calendar me-1"></i> الصدور: ${issueDate}</span>
+                            <div>
+                                <hr class="my-3 text-muted opacity-25">
+                                <div class="d-flex justify-content-between align-items-center mb-3 text-secondary small">
+                                    <span><i class="fa-solid fa-newspaper me-1"></i>${item.source || 'مصدر غير محدد'}</span>
+                                    <span><i class="fa-regular fa-clock me-1"></i>${issueDate}</span>
+                                </div>
+                                <a href="${item.link}" target="_blank" class="btn ${btnClass} w-100 text-center text-decoration-none">
+                                    <i class="fa-solid fa-up-right-from-square me-1"></i> قراءة الخبر الكامل
+                                </a>
                             </div>
-                            <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="btn btn-read-more ${btnClass} w-100 text-decoration-none text-center">
-                                قراءة الخبر من المصدر <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i>
-                            </a>
                         </div>
                     </div>
-                </div>
-            `}).join('');
+                `;
+            }).join('');
         }
 
         async function loadAnalyticsData() {
@@ -750,68 +746,104 @@
                 await loadArchiveClippings();
             }
 
-            document.getElementById("stat-total-count").innerText = allArchiveData.length;
-            document.getElementById("stat-critical-count").innerText = allArchiveData.filter(i => i.importance === "أحداث خطيرة" || i.category === "أحداث خطيرة" || i.importance === "خطير").length;
-            document.getElementById("stat-high-count").innerText = allArchiveData.filter(i => i.importance === "عالي").length;
-            document.getElementById("stat-sources-count").innerText = new Set(allArchiveData.map(i => i.source).filter(Boolean)).size;
+            const total = allArchiveData.length;
+            const critical = allArchiveData.filter(i => i.importance === "أحداث خطيرة" || i.category === "أحداث خطيرة").length;
+            const high = allArchiveData.filter(i => i.importance === "عالي").length;
+            const sources = new Set(allArchiveData.map(i => i.source)).size;
 
-            const categories = {}, importance = {}, sources = {}, dates = {};
+            document.getElementById("stat-total-count").innerText = total;
+            document.getElementById("stat-critical-count").innerText = critical;
+            document.getElementById("stat-high-count").innerText = high;
+            document.getElementById("stat-sources-count").innerText = sources;
 
-            allArchiveData.forEach(item => {
-                const cat = item.category || 'عام';
-                categories[cat] = (categories[cat] || 0) + 1;
-
-                const imp = item.importance || 'عادي';
-                importance[imp] = (importance[imp] || 0) + 1;
-
-                const src = item.source || 'غير محدد';
-                sources[src] = (sources[src] || 0) + 1;
-
-                if (item[DATE_FIELD]) {
-                    const dateStr = item[DATE_FIELD].split('T')[0];
-                    dates[dateStr] = (dates[dateStr] || 0) + 1;
-                }
-            });
-
-            renderCharts(categories, importance, sources, dates);
+            renderAnalyticsCharts();
         }
 
-        function renderCharts(categories, importance, sources, dates) {
+        function renderAnalyticsCharts() {
             if (chartCategoryInst) chartCategoryInst.destroy();
             if (chartImportanceInst) chartImportanceInst.destroy();
             if (chartSourceInst) chartSourceInst.destroy();
             if (chartDateInst) chartDateInst.destroy();
 
+            // 1. حسب الموضوع
+            const catCounts = {};
+            allArchiveData.forEach(i => {
+                const cat = i.category || 'عام';
+                catCounts[cat] = (catCounts[cat] || 0) + 1;
+            });
+
             chartCategoryInst = new Chart(document.getElementById('chart-category'), {
                 type: 'pie',
                 data: {
-                    labels: Object.keys(categories),
-                    datasets: [{ data: Object.values(categories), backgroundColor: ['#d90429', '#1b4332', '#d4af37', '#2d6a4f', '#52b788', '#74c69d'] }]
+                    labels: Object.keys(catCounts),
+                    datasets: [{
+                        data: Object.values(catCounts),
+                        backgroundColor: ['#1b4332', '#d4af37', '#d90429', '#2b2b2b', '#17a2b8', '#ffc107']
+                    }]
                 }
+            });
+
+            // 2. حسب الأهمية
+            const impCounts = {};
+            allArchiveData.forEach(i => {
+                const imp = i.importance || 'عادي';
+                impCounts[imp] = (impCounts[imp] || 0) + 1;
             });
 
             chartImportanceInst = new Chart(document.getElementById('chart-importance'), {
                 type: 'doughnut',
                 data: {
-                    labels: Object.keys(importance),
-                    datasets: [{ data: Object.values(importance), backgroundColor: ['#d90429', '#ff9800', '#6c757d'] }]
+                    labels: Object.keys(impCounts),
+                    datasets: [{
+                        data: Object.values(impCounts),
+                        backgroundColor: ['#6c757d', '#e65100', '#d90429', '#1b4332']
+                    }]
                 }
             });
+
+            // 3. حسب المصادر
+            const srcCounts = {};
+            allArchiveData.forEach(i => {
+                const src = i.source || 'غير معروف';
+                srcCounts[src] = (srcCounts[src] || 0) + 1;
+            });
+
+            const topSources = Object.entries(srcCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
 
             chartSourceInst = new Chart(document.getElementById('chart-source'), {
                 type: 'bar',
                 data: {
-                    labels: Object.keys(sources).slice(0, 5),
-                    datasets: [{ label: 'عدد القصاصات', data: Object.values(sources).slice(0, 5), backgroundColor: '#1b4332' }]
+                    labels: topSources.map(s => s[0]),
+                    datasets: [{
+                        label: 'عدد القصاصات',
+                        data: topSources.map(s => s[1]),
+                        backgroundColor: '#1b4332'
+                    }]
+                },
+                options: { plugins: { legend: { display: false } } }
+            });
+
+            // 4. أحدث الأشهر
+            const dateCounts = {};
+            allArchiveData.forEach(i => {
+                if (i[DATE_FIELD]) {
+                    const m = i[DATE_FIELD].substring(0, 7);
+                    dateCounts[m] = (dateCounts[m] || 0) + 1;
                 }
             });
 
-            const sortedDates = Object.keys(dates).sort();
+            const sortedDates = Object.entries(dateCounts).sort().slice(-6);
+
             chartDateInst = new Chart(document.getElementById('chart-date'), {
                 type: 'line',
                 data: {
-                    labels: sortedDates,
-                    datasets: [{ label: 'القصاصات', data: sortedDates.map(d => dates[d]), borderColor: '#d4af37', fill: false }]
+                    labels: sortedDates.map(d => d[0]),
+                    datasets: [{
+                        label: 'القصاصات',
+                        data: sortedDates.map(d => d[1]),
+                        borderColor: '#d4af37',
+                        fill: false
+                    }]
                 }
             });
         }
