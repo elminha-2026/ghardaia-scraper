@@ -23,7 +23,7 @@ except Exception as e:
     print(f"❌ خطأ أثناء الاتصال بـ Supabase: {e}")
     sys.exit(1)
 
-# --- 2. إعدادات البحث الدقيقة (تخصيص الجزائر وتفادي مزاب المغرب) ---
+# --- 2. إعدادات البحث المرنة والواسعة ---
 SEARCH_CONFIGS = [
     {
         "lang": "ar",
@@ -34,7 +34,8 @@ SEARCH_CONFIGS = [
             '"الشيخ أبي إسحاق"',
             '"جمعية التراث"',
             '"وادي مزاب"',
-            '"مزاب غرداية"'
+            '"مزاب غرداية"',
+            "مزاب الجزائر"
         ],
         "params": "hl=ar&gl=DZ&ceid=DZ:ar"
     },
@@ -46,7 +47,7 @@ SEARCH_CONFIGS = [
             '"patrimoine Ghardaia"',
             '"Abou Issaq"',
             '"vallée du Mzab"',
-            '"Mzab Ghardaia"'
+            "Mzab Ghardaia"
         ],
         "params": "hl=fr&gl=DZ&ceid=DZ:fr"
     },
@@ -55,63 +56,67 @@ SEARCH_CONFIGS = [
         "queries": [
             "Ghardaia",
             '"Ghardaia heritage"',
-            '"Mzab valley Ghardaia"'
+            '"Mzab valley"'
         ],
         "params": "hl=en&gl=US&ceid=US:en"
     }
 ]
 
-# الكلمات المرفوضة الخاصة بمزاب المغرب لضمان عدم إدخال أخبار المملكة المغربية
-MOROCCO_EXCLUDE_KEYWORDS = ["سطات", "الشاوية", "المغرب", "maroc", "settat", "chaouia"]
+# كلمات حصرية لاستبعاد مزاب المغرب فقط
+MOROCCO_EXCLUDE_KEYWORDS = ["سطات", "الشاوية", "settat", "chaouia"]
 
 def clean_summary_text(raw_html):
-    """تنظيف نص الملخص وحذف الأجزاء الخاصة بتوقيع الصحفيين والـ Author Bio"""
+    """تنظيف النص وإزالة وسوم HTML ونصوص بيو الصحفيين"""
     if not raw_html:
         return ""
     soup = BeautifulSoup(raw_html, "html.parser")
     
-    # حذف أي عناصر تعبيرية عن الكاتب
     for tag in soup.select('header, footer, nav, aside, script, style, .sidebar, .author-bio, .author'):
         tag.decompose()
         
     text = soup.get_text(separator=' ', strip=True)
 
-    # حذف أنماط تعريف الصحفي الشائعة (مثل حالة Djamel Kachemad)
+    # تنظيف بيو الصحفيين الشائع
     bio_patterns = [
-        r"Djamel Kachemad.*?(?=wilaya de Ghardaïa|Ghardaïa|\.|$)",
-        r"journaliste au sein de la rédaction de.*?Ghardaïa\.?",
-        r"spécialisé dans l'actualité locale.*?Ghardaïa\.?",
-        r"صحفي متخصص في أخبار.*?غرداية\.?"
+        r"Djamel Kachemad.*?(?=Ghardaïa|Ghardaia|غرداية|\.|$)",
+        r"journaliste au sein de la rédaction de.*?(?=\.|$)",
+        r"spécialisé dans l'actualité locale.*?(?=\.|$)"
     ]
     for pattern in bio_patterns:
         text = re.sub(pattern, "", text, flags=re.IGNORECASE)
 
     return text.strip()
 
-def is_valid_ghardaia_article(title, clean_summary):
-    """
-    التحقق من أن الخبر يخص غرداية/مزاب الجزائر وليس إيجابية كاذبة أو يخص المغرب
-    """
-    full_text = f"{title} {clean_summary}".lower()
+def parse_date_to_iso(raw_date):
+    """تحويل التاريخ إلى ISO بشكل آمن دون إلقاء المقالات"""
+    if not raw_date:
+        return datetime.utcnow().isoformat()
+    try:
+        dt = date_parser.parse(raw_date)
+        return dt.isoformat()
+    except Exception:
+        return datetime.utcnow().isoformat()
 
-    # 1. استبعاد الأخبار الخاصة بمزاب المغرب
+def is_valid_article(title, summary, raw_summary):
+    """تحديد ما إذا كان الخبر يتحدث فعلياً عن غرداية/مزاب الجزائر"""
+    full_text = f"{title} {summary} {raw_summary}".lower()
+
+    # 1. استبعاد مزاب المغرب
     if any(m_kw in full_text for m_kw in MOROCCO_EXCLUDE_KEYWORDS):
-        # إلا إذا وُجد ذكر صريح لغرداية أو الجزائر في العنوان
-        if "غرداية" not in title.lower() and "ghardaïa" not in title.lower() and "ghardaia" not in title.lower():
+        return False
+
+    # 2. إذا كانت الكلمة في العنوان -> القبول فوراً
+    valid_kw = ["غرداية", "ghardaïa", "ghardaia", "مزاب", "mzab", "أبي إسحاق", "abou issaq"]
+    if any(kw in title.lower() for kw in valid_kw):
+        return True
+
+    # 3. إذا كان البيو هو المسبب الوحيد لذكر غرداية والعنوان يتحدث عن ولاية أخرى -> استبعاد
+    if "djamel kachemad" in raw_summary.lower() or "journaliste au sein de la rédaction" in raw_summary.lower():
+        # إذا لم يذكر اسم غرداية في الملخص النظيف بعد حذف البيو -> استبعاد
+        if not any(kw in summary.lower() for kw in valid_kw):
             return False
 
-    # 2. التأكد من وجود إشارة حقيقية لغرداية أو مزاب الجزائر
-    valid_keywords = ["غرداية", "ghardaïa", "ghardaia", "مزاب", "mzab", "أبي إسحاق", "abou issaq"]
-    
-    # إذا كانت الكلمة في العنوان فالمقال مؤكد 100%
-    if any(kw in title.lower() for kw in valid_keywords):
-        return True
-
-    # إذا لم تكن في العنوان، يجب أن تظهر في الملخص النظيف (بعد حذف بيو الكاتب)
-    if any(kw in clean_summary.lower() for kw in valid_keywords):
-        return True
-
-    return False
+    return True
 
 def determine_category_and_importance(title, summary_text):
     clean_title = (title or "").lower()
@@ -125,16 +130,7 @@ def determine_category_and_importance(title, summary_text):
         "disaster", "fire", "flood", "death", "fatalities", "emergency", "collapse"
     ]
 
-    is_critical = False
-    if any(k in clean_title for k in critical_kw):
-        is_critical = True
-    else:
-        for k in critical_kw:
-            if clean_summary.count(k) >= 2:
-                is_critical = True
-                break
-
-    if is_critical:
+    if any(k in clean_title for k in critical_kw) or any(clean_summary.count(k) >= 2 for k in critical_kw):
         return "أحداث خطيرة", "أحداث خطيرة"
 
     heritage_kw = ["تراث", "مخطوط", "تاريخ", "زايد", "قصور", "ثقافة", "مزاب", "patrimoine", "manuscrit", "histoire", "culture", "heritage", "history", "mzab"]
@@ -156,99 +152,69 @@ def determine_category_and_importance(title, summary_text):
 
     return category, importance
 
-def validate_and_parse_2026_date(raw_date):
-    if not raw_date:
-        return None
-    try:
-        dt = date_parser.parse(raw_date)
-        if dt.year == 2026:
-            return dt.isoformat()
-    except Exception:
-        pass
-    return None
-
 def fetch_rss(query, params):
     encoded_query = urllib.parse.quote(query)
     rss_url = f"https://news.google.com/rss/search?q={encoded_query}&{params}"
     return feedparser.parse(rss_url)
 
 def scrape_and_store():
-    print("🚀 بدء التمشيط المفلتر والدقيق لعام 2026...")
-    
-    months_2026 = [
-        ("2026-01-01", "2026-01-31"), ("2026-02-01", "2026-02-28"),
-        ("2026-03-01", "2026-03-31"), ("2026-04-01", "2026-04-30"),
-        ("2026-05-01", "2026-05-31"), ("2026-06-01", "2026-06-30"),
-        ("2026-07-01", "2026-07-31"), ("2026-08-01", "2026-08-31"),
-        ("2026-09-01", "2026-09-30"), ("2026-10-01", "2026-10-31"),
-        ("2026-11-01", "2026-11-30"), ("2026-12-01", "2026-12-31"),
-    ]
+    print("🚀 بدء التمشيط الشامل والمباشر لاستخراج جميع القصاصات...")
 
     total_added = 0
-    total_rejected = 0
+    total_skipped = 0
 
     for config in SEARCH_CONFIGS:
         lang = config["lang"]
         queries = config["queries"]
         params = config["params"]
 
-        print(f"\n🌐 --- بدء المعالجة باللغة [{lang.upper()}] ---")
+        print(f"\n🌐 --- معالجة الاستعلامات باللغة [{lang.upper()}] ---")
 
         for q in queries:
-            all_target_queries = [q]
-            for start_d, end_d in months_2026:
-                all_target_queries.append(f"{q} after:{start_d} before:{end_d}")
+            feed = fetch_rss(q, params)
 
-            for target_q in all_target_queries:
-                feed = fetch_rss(target_q, params)
+            for entry in feed.entries:
+                title = entry.get("title", "").strip()
+                link = entry.get("link", "").strip()
+                published_raw = entry.get("published", "").strip()
 
-                for entry in feed.entries:
-                    title = entry.get("title", "").strip()
-                    link = entry.get("link", "").strip()
-                    published_raw = entry.get("published", "").strip()
+                published_iso = parse_date_to_iso(published_raw)
 
-                    # 1. التحقق من السنة (2026 حصراً)
-                    published_iso = validate_and_parse_2026_date(published_raw)
-                    if not published_iso:
-                        total_rejected += 1
-                        continue
+                raw_summary = entry.get("summary", "")
+                clean_summary = clean_summary_text(raw_summary)
 
-                    # 2. تنظيف الملخص وحذف توقيع الكاتب
-                    raw_summary = entry.get("summary", "")
-                    clean_summary = clean_summary_text(raw_summary)
+                # التثبت من صحة المقال
+                if not is_valid_article(title, clean_summary, raw_summary):
+                    total_skipped += 1
+                    continue
 
-                    # 3. الفحص الدقيق للمقال (استبعاد مزاب المغرب وإيجابيات الكاتب الكاذبة)
-                    if not is_valid_ghardaia_article(title, clean_summary):
-                        total_rejected += 1
-                        continue
+                source = "صحافة إلكترونية"
+                if "source" in entry and isinstance(entry.source, dict):
+                    source = entry.source.get("title", "صحافة إلكترونية")
 
-                    source = "صحافة إلكترونية"
-                    if "source" in entry and isinstance(entry.source, dict):
-                        source = entry.source.get("title", "صحافة إلكترونية")
+                if title and link:
+                    category, importance = determine_category_and_importance(title, clean_summary)
 
-                    if title and link:
-                        category, importance = determine_category_and_importance(title, clean_summary)
+                    data = {
+                        "title": title,
+                        "source": source,
+                        "link": link,
+                        "published_date": published_iso,
+                        "summary": clean_summary,
+                        "category": category,
+                        "importance": importance
+                    }
 
-                        data = {
-                            "title": title,
-                            "source": source,
-                            "link": link,
-                            "published_date": published_iso,
-                            "summary": clean_summary,
-                            "category": category,
-                            "importance": importance
-                        }
-
-                        try:
-                            res = supabase.table("clippings").upsert(data, on_conflict="link").execute()
-                            if res.data:
-                                total_added += 1
-                        except Exception:
-                            pass
+                    try:
+                        res = supabase.table("clippings").upsert(data, on_conflict="link").execute()
+                        if res.data:
+                            total_added += 1
+                    except Exception as e:
+                        print(f"⚠️ خطأ أثناء الإدراج: {e}")
 
     print("\n" + "="*60)
-    print(f"🎉 النتيجة النهائية: تم حفظ وتحديث {total_added} قصاصة دقيقة ومؤكدة لعام 2026!")
-    print(f"🛡️ تم استبعاد {total_rejected} مقال (تاريخ غير متوافق، أخبار مزاب المغرب، أو توقيع الصحفي الكاذب).")
+    print(f"🎉 تم استخراج وحفظ {total_added} قصاصة بنجاح!")
+    print(f"🛡️ تم تخطي {total_skipped} عنصر (إيجابيات كاذبة أو تخص مناطق أخرى).")
     print("="*60)
 
 if __name__ == "__main__":
