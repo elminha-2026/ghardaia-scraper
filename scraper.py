@@ -1,221 +1,189 @@
 import os
-import sys
-import feedparser
-import urllib.parse
 import re
-from datetime import datetime
-from dateutil import parser as date_parser
+import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
 from supabase import create_client, Client
 
-# --- 1. التحقق من مفاتيح الاتصال ---
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+# ==========================================
+# 1. إعدادات قاعدة البيانات Supabase
+# ==========================================
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://your-supabase-url.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "your-supabase-service-role-key")
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ خطأ: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في Secrets!")
-    sys.exit(1)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    print("✅ تم الاتصال بـ Supabase بنجاح.")
-except Exception as e:
-    print(f"❌ خطأ أثناء الاتصال بـ Supabase: {e}")
-    sys.exit(1)
+# ==========================================
+# 2. قواعد الفلترة والتحقق الدقيق
+# ==========================================
 
-# --- 2. إعدادات البحث المرنة والواسعة ---
-SEARCH_CONFIGS = [
-    {
-        "lang": "ar",
-        "queries": [
-            "غرداية",
-            '"ولاية غرداية"',
-            '"تراث غرداية"',
-            '"الشيخ أبي إسحاق"',
-            '"جمعية التراث"',
-            '"وادي مزاب"',
-            '"مزاب غرداية"',
-            "مزاب الجزائر"
-        ],
-        "params": "hl=ar&gl=DZ&ceid=DZ:ar"
-    },
-    {
-        "lang": "fr",
-        "queries": [
-            "Ghardaïa",
-            '"wilaya de Ghardaia"',
-            '"patrimoine Ghardaia"',
-            '"Abou Issaq"',
-            '"vallée du Mzab"',
-            "Mzab Ghardaia"
-        ],
-        "params": "hl=fr&gl=DZ&ceid=DZ:fr"
-    },
-    {
-        "lang": "en",
-        "queries": [
-            "Ghardaia",
-            '"Ghardaia heritage"',
-            '"Mzab valley"'
-        ],
-        "params": "hl=en&gl=US&ceid=US:en"
-    }
+# الكلمات المفتاحية الأساسية (يجب وجود إحداها على الأقل)
+MUST_MATCH_KEYWORDS = [
+    "أبو إسحاق أطفيش",
+    "ابو اسحاق اطفيش",
+    "إبراهيم أطفيش",
+    "ابراهيم اطفيش",
+    "جمعية الشيخ أبي إسحاق",
+    "جمعية الشيخ ابي اسحاق",
+    "جمعية أطفيش",
+    "تراث غرداية",
+    "جمعية التراث غرداية"
 ]
 
-# كلمات حصرية لاستبعاد مزاب المغرب فقط
-MOROCCO_EXCLUDE_KEYWORDS = ["سطات", "الشاوية", "settat", "chaouia"]
+# كلمات سياقية تأكيدية (إذا كانت الكلمة الأساسية عامة جداً)
+CONTEXT_KEYWORDS = [
+    "غرداية", "تراث", " بني يزقن", "ميزاب", "الجزائر", "مخطوطات", 
+    "فقه", "تاريخ", "المكتبة", "المؤسس", "الشيخ"
+]
 
-def clean_summary_text(raw_html):
-    """تنظيف النص وإزالة وسوم HTML ونصوص بيو الصحفيين"""
-    if not raw_html:
+# كلمات الاستبعاد (تستبعد القصاصة فوراً إذا وجدت في العنوان أو النص)
+EXCLUDE_KEYWORDS = [
+    "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", "الرياض",
+    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع"
+]
+
+def clean_text(text: str) -> str:
+    """تنظيف النص من المسافات الزائدة والأحرف الخاصة"""
+    if not text:
         return ""
-    soup = BeautifulSoup(raw_html, "html.parser")
-    
-    for tag in soup.select('header, footer, nav, aside, script, style, .sidebar, .author-bio, .author'):
-        tag.decompose()
-        
-    text = soup.get_text(separator=' ', strip=True)
-
-    # تنظيف بيو الصحفيين الشائع
-    bio_patterns = [
-        r"Djamel Kachemad.*?(?=Ghardaïa|Ghardaia|غرداية|\.|$)",
-        r"journaliste au sein de la rédaction de.*?(?=\.|$)",
-        r"spécialisé dans l'actualité locale.*?(?=\.|$)"
-    ]
-    for pattern in bio_patterns:
-        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
-
+    text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-def parse_date_to_iso(raw_date):
-    """تحويل التاريخ إلى ISO بشكل آمن دون إلقاء المقالات"""
-    if not raw_date:
-        return datetime.utcnow().isoformat()
-    try:
-        dt = date_parser.parse(raw_date)
-        return dt.isoformat()
-    except Exception:
-        return datetime.utcnow().isoformat()
+def is_relevant_article(title: str, summary: str) -> bool:
+    """
+    التحقق مما إذا كان الخبر متعلقاً بالجمعية وتراثها فعلياً.
+    """
+    combined_text = f"{title} {summary}".lower()
 
-def is_valid_article(title, summary, raw_summary):
-    """تحديد ما إذا كان الخبر يتحدث فعلياً عن غرداية/مزاب الجزائر"""
-    full_text = f"{title} {summary} {raw_summary}".lower()
-
-    # 1. استبعاد مزاب المغرب
-    if any(m_kw in full_text for m_kw in MOROCCO_EXCLUDE_KEYWORDS):
-        return False
-
-    # 2. إذا كانت الكلمة في العنوان -> القبول فوراً
-    valid_kw = ["غرداية", "ghardaïa", "ghardaia", "مزاب", "mzab", "أبي إسحاق", "abou issaq"]
-    if any(kw in title.lower() for kw in valid_kw):
-        return True
-
-    # 3. إذا كان البيو هو المسبب الوحيد لذكر غرداية والعنوان يتحدث عن ولاية أخرى -> استبعاد
-    if "djamel kachemad" in raw_summary.lower() or "journaliste au sein de la rédaction" in raw_summary.lower():
-        # إذا لم يذكر اسم غرداية في الملخص النظيف بعد حذف البيو -> استبعاد
-        if not any(kw in summary.lower() for kw in valid_kw):
+    # 1. الاستبعاد الفوري إذااحتوى النص على كلمات غير مرتبطة
+    for exc in EXCLUDE_KEYWORDS:
+        if exc in combined_text:
             return False
 
-    return True
+    # 2. مطابقة الكلمات الأساسية
+    has_exact_match = any(kw.lower() in combined_text for kw in MUST_MATCH_KEYWORDS)
+    if has_exact_match:
+        return True
 
-def determine_category_and_importance(title, summary_text):
-    clean_title = (title or "").lower()
-    clean_summary = (summary_text or "").lower()
-    full_text = f"{clean_title} {clean_summary}"
+    # 3. شرط إضافي: إذا وجدت كلمة "أطفيش" أو "إبراهيم أطفيش" مع كلمة سياقية مثل "غرداية" أو "تراث"
+    if "أطفيش" in combined_text or "اطفيش" in combined_text:
+        has_context = any(ctx.lower() in combined_text for ctx in CONTEXT_KEYWORDS)
+        if has_context:
+            return True
 
-    critical_kw = [
-        "حادث", "كارثة", "حريق", "فيضان", "وفاة", "ضحايا", "خطير", 
-        "طوارئ", "انهيار", "اعتداء", "انفجار", "مصابين", "جريمة", "غرق",
-        "accident", "incendie", "inondation", "décès", "victimes", "explosion", "drame", "crash",
-        "disaster", "fire", "flood", "death", "fatalities", "emergency", "collapse"
-    ]
+    return False
 
-    if any(k in clean_title for k in critical_kw) or any(clean_summary.count(k) >= 2 for k in critical_kw):
-        return "أحداث خطيرة", "أحداث خطيرة"
-
-    heritage_kw = ["تراث", "مخطوط", "تاريخ", "زايد", "قصور", "ثقافة", "مزاب", "patrimoine", "manuscrit", "histoire", "culture", "heritage", "history", "mzab"]
-    activity_kw = ["أبي إسحاق", "جمعية", "ملتقى", "محاضرة", "ندوة", "association", "séminaire", "conférence", "abou issaq"]
-    economy_kw = ["اقتصاد", "سوق", "تجارة", "استثمار", "تنمية", "ميزانية", "أسعار", "بورصة", "فلاحة", "زراعة", "صناعة", "économie", "commerce", "investissement", "market", "economy", "trade", "business"]
-
-    category = "أخبار عامة"
-    if any(k in full_text for k in heritage_kw):
-        category = "تراث وثقافة"
-    elif any(k in full_text for k in activity_kw):
-        category = "نشاطات الجمعية"
-    elif any(k in full_text for k in economy_kw):
-        category = "اقتصاد"
-
-    importance = "عادي"
-    high_kw = ["أبي إسحاق", "افتتاح", "رسمي", "هام", "اتفاقية", "وزير", "والي", "abou issaq", "ministre", "wali", "officiel", "minister"]
-    if any(k in full_text for k in high_kw):
+def determine_importance_and_category(title: str, summary: str):
+    """
+    تحديد درجة الأهمية والموضوع تلقائياً بناءً على الكلمات المفتاحية
+    """
+    text = f"{title} {summary}".lower()
+    
+    # تحديد درجة الخطورة / الأهمية
+    if any(k in text for k in ["تعدي", "سرقة", "هدم", "ضرر", "خطر", "حريق", "اندثار"]):
+        importance = "أحداث خطيرة"
+        category = "أحداث خطيرة"
+    elif any(k in text for k in ["مؤتمر", "ندوة", "افتتاح", "صدور", "كتاب", "مخطوط"]):
         importance = "عالي"
+        category = "نشاطات علمية وتراثية"
+    else:
+        importance = "عادي"
+        category = "اخبار عامة"
 
-    return category, importance
+    return importance, category
 
-def fetch_rss(query, params):
-    encoded_query = urllib.parse.quote(query)
-    rss_url = f"https://news.google.com/rss/search?q={encoded_query}&{params}"
-    return feedparser.parse(rss_url)
+# ==========================================
+# 3. دالة معالجة وحفظ القصاصة في Supabase
+# ==========================================
 
-def scrape_and_store():
-    print("🚀 بدء التمشيط الشامل والمباشر لاستخراج جميع القصاصات...")
+def save_clipping_to_supabase(title: str, summary: str, link: str, source: str, pub_date: str = None):
+    """
+    التحقق من القصاصة ثم حفظها في قاعدة البيانات إذا لم تكن مكررة
+    """
+    title = clean_text(title)
+    summary = clean_text(summary)
 
-    total_added = 0
-    total_skipped = 0
+    # 1. الفحص الدقيق للمحتوى
+    if not is_relevant_article(title, summary):
+        print(f"❌ تم تجنب الخبر غير المباشر/الخاطئ: {title} ({source})")
+        return False
 
-    for config in SEARCH_CONFIGS:
-        lang = config["lang"]
-        queries = config["queries"]
-        params = config["params"]
+    # 2. التأكد من عدم وجود الخبر سابقاً (تجنب التكرار عبر رابط الخبر)
+    try:
+        existing = supabase.table("clippings").select("id").eq("link", link).execute()
+        if existing.data and len(existing.data) > 0:
+            print(f"⚠️ الخبر موجود مسبقاً: {title}")
+            return False
+    except Exception as e:
+        print(f"خطأ أثناء فحص التكرار: {e}")
 
-        print(f"\n🌐 --- معالجة الاستعلامات باللغة [{lang.upper()}] ---")
+    # 3. تحديد الأهمية والتصنيف
+    importance, category = determine_importance_and_category(title, summary)
+    
+    # 4. تنسيق تاريخ النشر
+    if not pub_date:
+        pub_date = datetime.utcnow().strftime("%Y-%m-%d")
 
-        for q in queries:
-            feed = fetch_rss(q, params)
+    # 5. تجهيز البيانات للحفظ
+    payload = {
+        "title": title,
+        "summary": summary,
+        "link": link,
+        "source": source,
+        "published_date": pub_date,
+        "importance": importance,
+        "category": category
+    }
 
-            for entry in feed.entries:
-                title = entry.get("title", "").strip()
-                link = entry.get("link", "").strip()
-                published_raw = entry.get("published", "").strip()
+    # 6. الحفظ في Supabase
+    try:
+        res = supabase.table("clippings").insert(payload).execute()
+        print(f"✅ تم حفظ القصاصة بنجاح: {title}")
+        return True
+    except Exception as e:
+        print(f"❌ خطأ أثناء الحفظ في Supabase: {e}")
+        return False
 
-                published_iso = parse_date_to_iso(published_raw)
+# ==========================================
+# 4. نموذج دالة الكشط (Scraping Example)
+# ==========================================
 
-                raw_summary = entry.get("summary", "")
-                clean_summary = clean_summary_text(raw_summary)
-
-                # التثبت من صحة المقال
-                if not is_valid_article(title, clean_summary, raw_summary):
-                    total_skipped += 1
-                    continue
-
-                source = "صحافة إلكترونية"
-                if "source" in entry and isinstance(entry.source, dict):
-                    source = entry.source.get("title", "صحافة إلكترونية")
-
-                if title and link:
-                    category, importance = determine_category_and_importance(title, clean_summary)
-
-                    data = {
-                        "title": title,
-                        "source": source,
-                        "link": link,
-                        "published_date": published_iso,
-                        "summary": clean_summary,
-                        "category": category,
-                        "importance": importance
-                    }
-
-                    try:
-                        res = supabase.table("clippings").upsert(data, on_conflict="link").execute()
-                        if res.data:
-                            total_added += 1
-                    except Exception as e:
-                        print(f"⚠️ خطأ أثناء الإدراج: {e}")
-
-    print("\n" + "="*60)
-    print(f"🎉 تم استخراج وحفظ {total_added} قصاصة بنجاح!")
-    print(f"🛡️ تم تخطي {total_skipped} عنصر (إيجابيات كاذبة أو تخص مناطق أخرى).")
-    print("="*60)
+def scrape_rss_feed(feed_url: str, source_name: str):
+    """
+    مثال لجلب البيانات عبر RSS Feed لموقع إخباري
+    """
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    try:
+        response = requests.get(feed_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'xml') # أو 'html.parser' حسب المصدر
+        
+        items = soup.find_all('item')
+        for item in items:
+            title = item.find('title').text if item.find('title') else ''
+            link = item.find('link').text if item.find('link') else ''
+            summary = item.find('description').text if item.find('description') else ''
+            pub_date_raw = item.find('pubDate').text if item.find('pubDate') else None
+            
+            # معالجة وحفظ الخبر
+            save_clipping_to_supabase(
+                title=title,
+                summary=summary,
+                link=link,
+                source=source_name,
+                pub_date=None # يمكن تحويل pub_date_raw لتنسيق YYYY-MM-DD
+            )
+    except Exception as e:
+        print(f"خطأ أثناء جلب المصدر {source_name}: {e}")
 
 if __name__ == "__main__":
-    scrape_and_store()
+    print("بدء عملية رصد القصاصات وإلغاء النتائج الخاطئة...")
+    
+    # تجربة اختبارية مع خبر خاطئ (مثل خبر جريدة الرياض):
+    test_wrong_title = "افتتاح مشروع جديد في مدينة الرياض"
+    test_wrong_summary = "تراث المنطقة الشرقية يشهد تطوراً كبيراً"
+    save_clipping_to_supabase(test_wrong_title, test_wrong_summary, "https://www.alriyadh.com/2208237", "جريدة الرياض")
+
+    # تجربة اختبارية مع خبر صحيح:
+    test_right_title = "صدور كتاب جديد حول آثار الشيخ إبراهيم أطفيش"
+    test_right_summary = "قامت جمعية الشيخ أبي إسحاق للتراث بفرع غرداية برعاية هذا العمل العلماني المميز."
+    save_clipping_to_supabase(test_right_title, test_right_summary, "https://example.com/news/123", "جريدة التراث")
