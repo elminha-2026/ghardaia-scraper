@@ -2,6 +2,7 @@ import os
 import sys
 import feedparser
 import urllib.parse
+import requests
 from datetime import datetime
 from dateutil import parser as date_parser
 from bs4 import BeautifulSoup
@@ -59,14 +60,37 @@ SEARCH_CONFIGS = [
 ]
 
 def clean_html_text(raw_html):
-    """تنظيف نص الملخص من وسم الـ HTML والتنقلات الجانبية"""
+    """تنظيف نص الملخص من وسم الـ HTML والتنقلات الجانبية والتعريف بالصحفيين"""
     if not raw_html:
         return ""
     soup = BeautifulSoup(raw_html, "html.parser")
-    # استبعاد العناصر الهامشية إن وجدت
-    for tag in soup.select('header, footer, nav, aside, script, style, .sidebar, .author-bio'):
+    
+    # استبعاد العناصر الهامشية التي تسبب الإيجابيات الكاذبة
+    unwanted_selectors = [
+        'header', 'footer', 'nav', 'aside', 'script', 'style',
+        '.sidebar', '.author-bio', '.author', '.profile', '.journaliste',
+        '.related-posts', '.footer-widgets'
+    ]
+    for tag in soup.select(','.join(unwanted_selectors)):
         tag.decompose()
+        
     return soup.get_text(separator=' ', strip=True)
+
+def is_false_positive_bio(text):
+    """فحص ما إذا كانت الإشارة مجرد تعريف هامشي بالكاتب أو الصحفي"""
+    text_lower = text.lower()
+    bio_patterns = [
+        "journaliste au sein de la rédaction",
+        "spécialisé dans l'actualité locale",
+        "relatives à la wilaya de ghardaïa",
+        "spécialisé dans relative à la wilaya",
+        "صحفي متخصص في أخبار",
+        "محرر بجريدة"
+    ]
+    for pattern in bio_patterns:
+        if pattern in text_lower:
+            return True
+    return False
 
 def determine_category_and_importance(title, summary_text):
     """
@@ -84,14 +108,13 @@ def determine_category_and_importance(title, summary_text):
         "disaster", "fire", "flood", "death", "fatalities", "emergency", "collapse"
     ]
 
-    # --- فحص الأحداث الخطيرة (آلية منع الإيجابيات الكاذبة) ---
     is_critical = False
     
-    # المعيار الأول: وجود كلمة خطيرة مباشرة في العنوان (مؤشر قطعي)
+    # المعيار الأول: وجود كلمة خطيرة مباشرة في العنوان
     if any(k in clean_title for k in critical_kw):
         is_critical = True
     else:
-        # المعيار الثاني: تكرار الكلمة مرتين على الأقل في نص المقال/الملخص لمنع التقاط الهوامش العابرة
+        # المعيار الثاني: تكرار الكلمة مرتين على الأقل في صلب النص المصفى
         for k in critical_kw:
             if clean_summary.count(k) >= 2:
                 is_critical = True
@@ -172,6 +195,9 @@ def scrape_and_store():
     total_added = 0
     total_rejected = 0
 
+    # الكلمات المفتاحية الرئيسية التي يُشترط وجودها بصلب الموضوع وليس الهامش
+    core_location_keywords = ["ghardaïa", "ghardaia", "غرداية", "مزاب", "mzab"]
+
     for config in SEARCH_CONFIGS:
         lang = config["lang"]
         queries = config["queries"]
@@ -198,16 +224,22 @@ def scrape_and_store():
                         total_rejected += 1
                         continue
 
-                    source = "صحافة إلكترونية"
-                    if "source" in entry and isinstance(entry.source, dict):
-                        source = entry.source.get("title", "صحافة إلكترونية")
-
                     raw_summary = entry.get("summary", "")
                     if not raw_summary and "title_detail" in entry:
                         raw_summary = title
 
-                    # تنظيف الملخص من وسوم الـ HTML والملاحظات الجانبية
                     summary_clean = clean_html_text(raw_summary)
+
+                    # 🛑 تصفية الذاتية: استبعاد القصاصة إذا كانت الكلمة تظهر فقط داخل التعريف بالكاتب
+                    if is_false_positive_bio(raw_summary) or is_false_positive_bio(summary_clean):
+                        # التأكد من أن العنوان لا يحتوي فعلاً على غرداية
+                        if not any(k in title.lower() for k in core_location_keywords):
+                            total_rejected += 1
+                            continue
+
+                    source = "صحافة إلكترونية"
+                    if "source" in entry and isinstance(entry.source, dict):
+                        source = entry.source.get("title", "صحافة إلكترونية")
 
                     if title and link:
                         category, importance = determine_category_and_importance(title, summary_clean)
@@ -231,7 +263,7 @@ def scrape_and_store():
 
     print("\n" + "="*60)
     print(f"🎉 النتيجة النهائية: تم حفظ وتحديث {total_added} قصاصة مؤكدة لعام 2026 بنجاح!")
-    print(f"🛡️ تم استبعاد {total_rejected} مقال لعدم توافق تاريخها مع سنة 2026.")
+    print(f"🛡️ تم استبعاد {total_rejected} مقال لعدم توافق التاريخ أو الإيجابيات الكاذبة (تعريف الكاتب).")
     print("="*60)
 
 if __name__ == "__main__":
