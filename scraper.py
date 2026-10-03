@@ -2,7 +2,7 @@ import os
 import sys
 import feedparser
 import urllib.parse
-import requests
+import re
 from datetime import datetime
 from dateutil import parser as date_parser
 from bs4 import BeautifulSoup
@@ -23,77 +23,95 @@ except Exception as e:
     print(f"❌ خطأ أثناء الاتصال بـ Supabase: {e}")
     sys.exit(1)
 
-# --- 2. إعدادات البحث ---
+# --- 2. إعدادات البحث الدقيقة (تخصيص الجزائر وتفادي مزاب المغرب) ---
 SEARCH_CONFIGS = [
     {
         "lang": "ar",
-        "queries": ["غرداية", '"ولاية غرداية"', '"تراث غرداية"', '"الشيخ أبي إسحاق"', '"جمعية التراث"', "مزاب"],
+        "queries": [
+            "غرداية",
+            '"ولاية غرداية"',
+            '"تراث غرداية"',
+            '"الشيخ أبي إسحاق"',
+            '"جمعية التراث"',
+            '"وادي مزاب"',
+            '"مزاب غرداية"'
+        ],
         "params": "hl=ar&gl=DZ&ceid=DZ:ar"
     },
     {
         "lang": "fr",
-        "queries": ["Ghardaïa", '"wilaya de Ghardaia"', '"patrimoine Ghardaia"', '"Abou Issaq"', "Mzab"],
+        "queries": [
+            "Ghardaïa",
+            '"wilaya de Ghardaia"',
+            '"patrimoine Ghardaia"',
+            '"Abou Issaq"',
+            '"vallée du Mzab"',
+            '"Mzab Ghardaia"'
+        ],
         "params": "hl=fr&gl=DZ&ceid=DZ:fr"
     },
     {
         "lang": "en",
-        "queries": ["Ghardaia", '"Ghardaia heritage"', '"Mzab valley"'],
+        "queries": [
+            "Ghardaia",
+            '"Ghardaia heritage"',
+            '"Mzab valley Ghardaia"'
+        ],
         "params": "hl=en&gl=US&ceid=US:en"
     }
 ]
 
-CORE_LOCATION_KEYWORDS = ["ghardaïa", "ghardaia", "غرداية", "مزاب", "mzab", "abou issaq", "أبي إسحاق"]
+# الكلمات المرفوضة الخاصة بمزاب المغرب لضمان عدم إدخال أخبار المملكة المغربية
+MOROCCO_EXCLUDE_KEYWORDS = ["سطات", "الشاوية", "المغرب", "maroc", "settat", "chaouia"]
 
-def verify_and_clean_real_article(url):
+def clean_summary_text(raw_html):
+    """تنظيف نص الملخص وحذف الأجزاء الخاصة بتوقيع الصحفيين والـ Author Bio"""
+    if not raw_html:
+        return ""
+    soup = BeautifulSoup(raw_html, "html.parser")
+    
+    # حذف أي عناصر تعبيرية عن الكاتب
+    for tag in soup.select('header, footer, nav, aside, script, style, .sidebar, .author-bio, .author'):
+        tag.decompose()
+        
+    text = soup.get_text(separator=' ', strip=True)
+
+    # حذف أنماط تعريف الصحفي الشائعة (مثل حالة Djamel Kachemad)
+    bio_patterns = [
+        r"Djamel Kachemad.*?(?=wilaya de Ghardaïa|Ghardaïa|\.|$)",
+        r"journaliste au sein de la rédaction de.*?Ghardaïa\.?",
+        r"spécialisé dans l'actualité locale.*?Ghardaïa\.?",
+        r"صحفي متخصص في أخبار.*?غرداية\.?"
+    ]
+    for pattern in bio_patterns:
+        text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+
+    return text.strip()
+
+def is_valid_ghardaia_article(title, clean_summary):
     """
-    تفتح هذه الدالة الرابط الأصلي، وتحذف بيو الكاتب والهوامش كلياً،
-    ثم تتحقق هل الكلمة المفتاحية موجودة فعلاً في صلب المقال أم كانت مجرد توقيع للكاتب.
+    التحقق من أن الخبر يخص غرداية/مزاب الجزائر وليس إيجابية كاذبة أو يخص المغرب
     """
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
-    try:
-        res = requests.get(url, headers=headers, timeout=8, allow_redirects=True)
-        if res.status_code != 200:
-            return None, False
+    full_text = f"{title} {clean_summary}".lower()
 
-        soup = BeautifulSoup(res.text, 'html.parser')
+    # 1. استبعاد الأخبار الخاصة بمزاب المغرب
+    if any(m_kw in full_text for m_kw in MOROCCO_EXCLUDE_KEYWORDS):
+        # إلا إذا وُجد ذكر صريح لغرداية أو الجزائر في العنوان
+        if "غرداية" not in title.lower() and "ghardaïa" not in title.lower() and "ghardaia" not in title.lower():
+            return False
 
-        # 1. حذف كامل للحاويات الجانبية وتوقيع الكاتب والهوامش
-        unwanted_selectors = [
-            'header', 'footer', 'nav', 'aside', 'script', 'style',
-            '.sidebar', '.author-bio', '.author', '.author-box', '.profile', 
-            '.journaliste', '.related-posts', '.footer-widgets', '#sidebar',
-            'div[class*="author"]', 'div[class*="bio"]'
-        ]
-        for tag in soup.select(','.join(unwanted_selectors)):
-            tag.decompose()
+    # 2. التأكد من وجود إشارة حقيقية لغرداية أو مزاب الجزائر
+    valid_keywords = ["غرداية", "ghardaïa", "ghardaia", "مزاب", "mzab", "أبي إسحاق", "abou issaq"]
+    
+    # إذا كانت الكلمة في العنوان فالمقال مؤكد 100%
+    if any(kw in title.lower() for kw in valid_keywords):
+        return True
 
-        # 2. استخراج صلب المقال فقط
-        article_body = (
-            soup.find('article') or 
-            soup.find('div', class_=['entry-content', 'article-body', 'post-content', 'main-content'])
-        )
+    # إذا لم تكن في العنوان، يجب أن تظهر في الملخص النظيف (بعد حذف بيو الكاتب)
+    if any(kw in clean_summary.lower() for kw in valid_keywords):
+        return True
 
-        clean_text = ""
-        if article_body:
-            clean_text = article_body.get_text(separator=' ', strip=True)
-        else:
-            # استخراج الفقرات الأساسية فقط
-            paragraphs = soup.find_all('p')
-            clean_text = ' '.join([p.get_text(strip=True) for p in paragraphs])
-
-        clean_text_lower = clean_text.lower()
-
-        # 3. التحقق الجذري: هل الكلمة البحثية موجودة في صلب المقال النظيف؟
-        has_core_keyword = any(kw in clean_text_lower for kw in CORE_LOCATION_KEYWORDS)
-
-        return clean_text[:300], has_core_keyword
-
-    except Exception:
-        # في حال تعذر جلب الصفحة الأصيلة، نكتفي بعدم المجازفة إذا لم تكن في العنوان
-        return None, False
-
+    return False
 
 def determine_category_and_importance(title, summary_text):
     clean_title = (title or "").lower()
@@ -138,7 +156,6 @@ def determine_category_and_importance(title, summary_text):
 
     return category, importance
 
-
 def validate_and_parse_2026_date(raw_date):
     if not raw_date:
         return None
@@ -150,15 +167,13 @@ def validate_and_parse_2026_date(raw_date):
         pass
     return None
 
-
 def fetch_rss(query, params):
     encoded_query = urllib.parse.quote(query)
     rss_url = f"https://news.google.com/rss/search?q={encoded_query}&{params}"
     return feedparser.parse(rss_url)
 
-
 def scrape_and_store():
-    print("🚀 بدء التمشيط المتقدم والمفلتر لعام 2026...")
+    print("🚀 بدء التمشيط المفلتر والدقيق لعام 2026...")
     
     months_2026 = [
         ("2026-01-01", "2026-01-31"), ("2026-02-01", "2026-02-28"),
@@ -192,43 +207,34 @@ def scrape_and_store():
                     link = entry.get("link", "").strip()
                     published_raw = entry.get("published", "").strip()
 
+                    # 1. التحقق من السنة (2026 حصراً)
                     published_iso = validate_and_parse_2026_date(published_raw)
                     if not published_iso:
                         total_rejected += 1
                         continue
 
-                    title_lower = title.lower()
-                    has_in_title = any(kw in title_lower for kw in CORE_LOCATION_KEYWORDS)
+                    # 2. تنظيف الملخص وحذف توقيع الكاتب
+                    raw_summary = entry.get("summary", "")
+                    clean_summary = clean_summary_text(raw_summary)
 
-                    final_summary = ""
-                    
-                    # إذا لم تكن الكلمة في العنوان الرئيسي، نفحص صلب المقال الأصلي بعد حذف بيو الكاتب
-                    if not has_in_title:
-                        real_summary, is_valid = verify_and_clean_real_article(link)
-                        if not is_valid:
-                            total_rejected += 1
-                            print(f"🛡️ تم استبعاد خبر خاطئ (بسبب بيو الكاتب): {title}")
-                            continue
-                        final_summary = real_summary
-                    else:
-                        # إذا كانت في العنوان فالمقال مؤكد
-                        raw_summary = entry.get("summary", "")
-                        soup = BeautifulSoup(raw_summary, "html.parser")
-                        final_summary = soup.get_text(separator=' ', strip=True)
+                    # 3. الفحص الدقيق للمقال (استبعاد مزاب المغرب وإيجابيات الكاتب الكاذبة)
+                    if not is_valid_ghardaia_article(title, clean_summary):
+                        total_rejected += 1
+                        continue
 
                     source = "صحافة إلكترونية"
                     if "source" in entry and isinstance(entry.source, dict):
                         source = entry.source.get("title", "صحافة إلكترونية")
 
                     if title and link:
-                        category, importance = determine_category_and_importance(title, final_summary)
+                        category, importance = determine_category_and_importance(title, clean_summary)
 
                         data = {
                             "title": title,
                             "source": source,
                             "link": link,
                             "published_date": published_iso,
-                            "summary": final_summary,
+                            "summary": clean_summary,
                             "category": category,
                             "importance": importance
                         }
@@ -241,8 +247,8 @@ def scrape_and_store():
                             pass
 
     print("\n" + "="*60)
-    print(f"🎉 النتيجة النهائية: تم حفظ وتحديث {total_added} قصاصة حقيقية ومؤكدة لعام 2026!")
-    print(f"🛡️ تم استبعاد {total_rejected} مقال غير متوافق أو إيجابية كاذبة (بسبب تعريف الكاتب).")
+    print(f"🎉 النتيجة النهائية: تم حفظ وتحديث {total_added} قصاصة دقيقة ومؤكدة لعام 2026!")
+    print(f"🛡️ تم استبعاد {total_rejected} مقال (تاريخ غير متوافق، أخبار مزاب المغرب، أو توقيع الصحفي الكاذب).")
     print("="*60)
 
 if __name__ == "__main__":
