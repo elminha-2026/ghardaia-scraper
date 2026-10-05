@@ -1,195 +1,100 @@
 import os
-import re
 import sys
-import requests
+import feedparser
 import urllib.parse
-from bs4 import BeautifulSoup
-from datetime import datetime
-from email.utils import parsedate_to_datetime
 from supabase import create_client, Client
 
-# ==========================================
-# 1. الاتصال بـ Supabase والتحقق من البيئة
-# ==========================================
+# --- 1. التحقق من مفاتيح الاتصال ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ خطأ حرج: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في متغيرات البيئة.")
+    print("❌ خطأ: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في Secrets!")
     sys.exit(1)
 
 try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    print("✅ تم الاتصال بقاعدة بيانات Supabase بنجاح.")
+    print("✅ تم الاتصال بـ Supabase بنجاح.")
 except Exception as e:
-    print(f"❌ فشل الاتصال بـ Supabase: {e}")
+    print(f"❌ خطأ أثناء الاتصال بـ Supabase: {e}")
     sys.exit(1)
 
-# ==========================================
-# 2. قوائم الفلترة مع تساهل في المطابقة
-# ==========================================
+# --- 2. استعلام البحث ---
+QUERY = '(غرداية OR "ولاية غرداية" OR "تراث غرداية" OR "الشيخ أبي إسحاق" OR "جمعية التراث") الجزائر'
+ENCODED_QUERY = urllib.parse.quote(QUERY)
+RSS_URL = f"https://news.google.com/rss/search?q={ENCODED_QUERY}&hl=ar&gl=DZ&ceid=DZ:ar"
 
-KEYWORDS = [
-    "غرداية", "أطفيش", "اطفيش", "ميزاب", "تراث", "بني يزقن", 
-    "القرارة", "بريان", "متليلي", "العطف", "بونورة", "زلفانة"
-]
+def determine_category_and_importance(title, summary):
+    """تحليل نص الخبر لتحديد التصنيف والأهمية تلقائياً"""
+    text = f"{title} {summary}".lower()
+    
+    # تحديد التصنيف
+    category = "أخبار عامة"
+    if any(k in text for k in ["تراث", "مخطوط", "تاريخ", "زايد", "قصور"]):
+        category = "تراث وثقافة"
+    elif any(k in text for k in ["أبي إسحاق", "جمعية", "ملتقى", "محاضرة"]):
+        category = "نشاطات الجمعية"
 
-EXCLUDE_KEYWORDS = [
-    "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", "الزمالك",
-    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع"
-]
+    # تحديد الأهمية
+    importance = "عادي"
+    if any(k in text for k in ["أبي إسحاق", "افتتاح", "رسمي", "هام", "اتفاقية"]):
+        importance = "عالي"
 
-# ==========================================
-# 3. المعالجة والدوال المساعدة
-# ==========================================
+    return category, importance
 
-def clean_text(text: str) -> str:
-    if not text:
-        return ""
-    soup = BeautifulSoup(text, "html.parser")
-    clean = soup.get_text(separator=' ')
-    clean = re.sub(r'\s+', ' ', clean)
-    return clean.strip()
+def scrape_and_store():
+    print("🚀 بدء تمشيط الأخبار لجلب القصاصات وتصنيفها...")
+    feed = feedparser.parse(RSS_URL)
 
-def parse_date(date_str: str) -> str:
-    if not date_str:
-        return datetime.utcnow().strftime("%Y-%m-%d")
-    try:
-        dt = parsedate_to_datetime(date_str)
-        return dt.strftime("%Y-%m-%d")
-    except Exception:
-        return datetime.utcnow().strftime("%Y-%m-%d")
+    if not feed.entries:
+        print("⚠️ لم يتم العثور على أي مقالات.")
+        return
 
-def is_relevant_article(title: str, summary: str) -> bool:
-    combined_text = clean_text(f"{title} {summary}").lower()
+    print(f"🔎 تم العثور على {len(feed.entries)} خبر. جاري الحفظ والتصنيف في Supabase...")
 
-    # استبعاد الأخبار غير التراثية/الرياضية
-    for exc in EXCLUDE_KEYWORDS:
-        if exc in combined_text:
-            return False
-
-    # قبول أي خبر يحتوي على إحدى الكلمات المفتاحية
-    for kw in KEYWORDS:
-        if kw.lower() in combined_text:
-            return True
-
-    return False
-
-def determine_importance_and_category(title: str, summary: str):
-    text = clean_text(f"{title} {summary}").lower()
-    if any(k in text for k in ["تعدي", "سرقة", "هدم", "ضرر", "خطر", "حريق", "اندثار"]):
-        return "أحداث خطيرة", "أحداث خطيرة"
-    elif any(k in text for k in ["مؤتمر", "ندوة", "افتتاح", "صدور", "كتاب", "مخطوط", "محاضرة"]):
-        return "عالي", "نشاطات علمية وتراثية"
-    return "عادي", "أخبار عامة"
-
-# ==========================================
-# 4. دالة الحفظ
-# ==========================================
-
-def save_clipping_to_supabase(title: str, summary: str, link: str, source: str, pub_date: str = None) -> bool:
-    clean_title_str = clean_text(title)
-    clean_summary_str = clean_text(summary)
-
-    if not clean_title_str or not link:
-        return False
-
-    if not is_relevant_article(clean_title_str, clean_summary_str):
-        print(f"  ⏭️ [مستبعد بالفلترة]: {clean_title_str[:40]}...")
-        return False
-
-    try:
-        existing = supabase.table("clippings").select("id").eq("link", link).execute()
-        if existing.data and len(existing.data) > 0:
-            print(f"  ⚠️ [موجود مسبقاً]: {clean_title_str[:40]}...")
-            return False
-    except Exception as e:
-        print(f"  ⚠️ خطأ فحص التكرار: {e}")
-
-    importance, category = determine_importance_and_category(clean_title_str, clean_summary_str)
-    formatted_date = parse_date(pub_date)
-
-    payload = {
-        "title": clean_title_str,
-        "summary": clean_summary_str,
-        "link": link,
-        "source": source,
-        "published_date": formatted_date,
-        "importance": importance,
-        "category": category
-    }
-
-    try:
-        supabase.table("clippings").insert(payload).execute()
-        print(f"  ✅ [تم الحفظ بنجاح]: {clean_title_str[:40]}...")
-        return True
-    except Exception as e:
-        print(f"  ❌ خطأ إدراج في Supabase: {e}")
-        return False
-
-# ==========================================
-# 5. دوال جلب الأخبار واختبار الاستجابة
-# ==========================================
-
-def scrape_rss_feed(feed_url: str, source_name: str):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-    }
-    try:
-        response = requests.get(feed_url, headers=headers, timeout=15)
-        print(f"\n🔍 المصدر: {source_name} | كود الاستجابة: {response.status_code}")
-
-        if response.status_code != 200:
-            print(f"❌ فشل جلب الرابط، رمز الحالة: {response.status_code}")
-            return
-
-        soup = BeautifulSoup(response.content, 'xml')
-        items = soup.find_all('item')
+    new_articles_count = 0
+    skipped_count = 0
+    
+    for entry in feed.entries:
+        title = entry.get("title", "").strip()
+        link = entry.get("link", "").strip()
+        published = entry.get("published", "").strip()
         
-        if not items:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            items = soup.find_all('item')
+        source = "صحافة إلكترونية"
+        if "source" in entry and isinstance(entry.source, dict):
+            source = entry.source.get("title", "صحافة إلكترونية")
 
-        print(f"📦 عدد العناصر المكتشفة في XML: {len(items)}")
+        summary = entry.get("summary", "")
+        if not summary and "title_detail" in entry:
+            summary = title
 
-        saved_count = 0
-        for item in items:
-            title = item.find('title').text if item.find('title') else ''
-            link = item.find('link').text if item.find('link') else ''
-            summary = item.find('description').text if item.find('description') else ''
-            pub_date = item.find('pubDate').text if item.find('pubDate') else None
+        if title and link:
+            # تحليل ذكي للتصنيف والأهمية
+            category, importance = determine_category_and_importance(title, summary)
 
-            if save_clipping_to_supabase(title, summary, link, source_name, pub_date):
-                saved_count += 1
+            data = {
+                "title": title,
+                "source": source,
+                "link": link,
+                "published_date": published,
+                "summary": summary,
+                "category": category,
+                "importance": importance
+            }
+            
+            try:
+                # الحفظ والتحديث تلقائياً دون تكرار
+                response = supabase.table("clippings").upsert(data, on_conflict="link").execute()
+                if response.data:
+                    new_articles_count += 1
+                    print(f"✅ [{category} | أهمية: {importance}] {title[:40]}...")
+            except Exception as e:
+                print(f"⚠️ تعذر إدراج الخبر: {e}")
+                skipped_count += 1
 
-        print(f"📊 نتيجة المصدر: تم حفظ {saved_count} قصاصات جديدة.")
-
-    except Exception as e:
-        print(f"❌ خطأ غير متوقع أثناء جلب {source_name}: {e}")
-
-# ==========================================
-# 6. التشغيل الرئيسي
-# ==========================================
+    print("\n" + "="*50)
+    print(f"📊 النتيجة: تم معالجة وتخزين {new_articles_count} مقال بنجاح!")
+    print("="*50)
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("بدء تشغيل scraper.py ومراقبة النتائج...")
-    print("=" * 60)
-
-    # قائمة استعلامات متدرجة
-    queries = [
-        "غرداية",
-        "ولاية غرداية",
-        "تراث غرداية",
-        "أطفيش"
-    ]
-
-    for q in queries:
-        encoded_query = urllib.parse.quote(q)
-        rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=ar&gl=DZ&ceid=DZ:ar"
-        scrape_rss_feed(rss_url, f"Google News: {q}")
-
-    print("\n" + "=" * 60)
-    print("إنتهاء عملية التشغيل.")
-    print("=" * 60)
+    scrape_and_store()
