@@ -16,13 +16,17 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("❌ خطأ حرج: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في متغيرات البيئة.")
-    print("يرجى التأكد من إضافتهما في Secrets الخاصة بـ GitHub Actions أو في بيئة التشغيل.")
     sys.exit(1)
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    print("✅ تم الاتصال بقاعدة بيانات Supabase بنجاح.")
+except Exception as e:
+    print(f"❌ فشل الاتصال بقاعدة البيانات Supabase: {e}")
+    sys.exit(1)
 
 # ==========================================
-# 2. قوائم بلديات ولاية غرداية والفلترة
+# 2. قوائم الفلترة والكلمات المفتاحية
 # ==========================================
 
 GHARDAIA_MUNICIPALITIES = [
@@ -31,25 +35,16 @@ GHARDAIA_MUNICIPALITIES = [
 ]
 
 MUST_MATCH_KEYWORDS = [
-    "أبو إسحاق أطفيش", "ابو اسحاق اطفيش", "إبراهيم أطفيش", "ابراهيم اطفيش",
-    "جمعية الشيخ أبي إسحاق", "جمعية الشيخ ابي اسحاق", "جمعية أطفيش",
-    "تراث غرداية", "جمعية التراث غرداية", "وادي ميزاب", "قصر غرداية"
-]
-
-CONTEXT_KEYWORDS = GHARDAIA_MUNICIPALITIES + [
-    "تراث", "ميزاب", "وادي ميزاب", "الجزائر", "مخطوطات", 
-    "فقه", "تاريخ", "المكتبة", "المؤسس", "الشيخ", 
-    "الإباضية", "مكتبة القطب", "قصر"
+    "أطفيش", "اطفيش", "غرداية", "ميزاب", "تراث"
 ]
 
 EXCLUDE_KEYWORDS = [
     "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", "الزمالك",
-    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع", "شقة للبيع",
-    "دوري روشن", "أبطال أوروبا", "أسعار الذهب", "سعر الدولار"
+    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع", "شقة للبيع"
 ]
 
 # ==========================================
-# 3. الدوال المساعدة ومعالجة النصوص
+# 3. الدوال المساعدة لمعالجة النصوص
 # ==========================================
 
 def clean_text(text: str) -> str:
@@ -72,9 +67,7 @@ def parse_date(date_str: str) -> str:
         return datetime.utcnow().strftime("%Y-%m-%d")
 
 def is_relevant_article(title: str, summary: str) -> bool:
-    """
-    الدالة المحورية للفلترة: تفحص صلة القصاصة بالموضوع
-    """
+    """فحص صلة الخبر بالفكرة المطلوب رصدها"""
     combined_text = clean_text(f"{title} {summary}").lower()
 
     # 1. الاستبعاد الفوري عند وجود كلمات غير مرتبطة
@@ -82,25 +75,14 @@ def is_relevant_article(title: str, summary: str) -> bool:
         if exc in combined_text:
             return False
 
-    # 2. المطابقة التامة مع الكلمات الرئيسية
-    if any(kw.lower() in combined_text for kw in MUST_MATCH_KEYWORDS):
-        return True
-
-    # 3. مطابقة وجود اسم عائلة أطفيش
-    if "أطفيش" in combined_text or "اطفيش" in combined_text:
-        return True
-
-    # 4. مطابقة اسم إحدى بلديات غرداية
-    has_municipality = any(muni.lower() in combined_text for muni in GHARDAIA_MUNICIPALITIES)
-    if has_municipality:
+    # 2. فحص وجود أي كلمة من الكلمات المفتاحية أو بلديات غرداية
+    if any(kw.lower() in combined_text for kw in MUST_MATCH_KEYWORDS + GHARDAIA_MUNICIPALITIES):
         return True
 
     return False
 
 def determine_importance_and_category(title: str, summary: str):
-    """
-    تحديد درجة الأهمية والتصنيف التلقائي للقصاصة
-    """
+    """تحديد الأهمية والتصنيف"""
     text = clean_text(f"{title} {summary}").lower()
     
     if any(k in text for k in ["تعدي", "سرقة", "هدم", "ضرر", "خطر", "حريق", "اندثار", "تهديد"]):
@@ -116,32 +98,31 @@ def determine_importance_and_category(title: str, summary: str):
     return importance, category
 
 # ==========================================
-# 4. دالة الحفظ في Supabase
+# 4. دالة الحفظ في Supabase مع Logging مفصل
 # ==========================================
 
 def save_clipping_to_supabase(title: str, summary: str, link: str, source: str, pub_date: str = None) -> bool:
-    """
-    فحص وتصفية القصاصة ثم رفعها لقاعدة البيانات إذا لم تكن مكررة
-    """
     clean_title_str = clean_text(title)
     clean_summary_str = clean_text(summary)
 
     if not clean_title_str or not link:
         return False
 
-    # 1. فلترة المحتوى غير المرتبط
+    # 1. الفلترة
     if not is_relevant_article(clean_title_str, clean_summary_str):
+        print(f"  ⏭️ [مستبعد بالفلترة]: {clean_title_str[:40]}...")
         return False
 
-    # 2. منع التكرار بناءً على رابط المقال
+    # 2. منع التكرار
     try:
         existing = supabase.table("clippings").select("id").eq("link", link).execute()
         if existing.data and len(existing.data) > 0:
+            print(f"  ⚠️ [موجود مسبقاً]: {clean_title_str[:40]}...")
             return False
     except Exception as e:
-        print(f"⚠️ خطأ أثناء فحص التكرار: {e}")
+        print(f"  ⚠️ خطأ أثناء فحص التكرار: {e}")
 
-    # 3. معالجة التواريخ والتصنيفات
+    # 3. تجهيز البيانات
     importance, category = determine_importance_and_category(clean_title_str, clean_summary_str)
     formatted_date = parse_date(pub_date)
 
@@ -155,30 +136,27 @@ def save_clipping_to_supabase(title: str, summary: str, link: str, source: str, 
         "category": category
     }
 
-    # 4. الحفظ في Supabase
+    # 4. الإدراج الحقيقي في قاعدة البيانات
     try:
-        supabase.table("clippings").insert(payload).execute()
-        print(f"✅ تم حفظ قصاصة جديدة: {clean_title_str[:50]}... ({source})")
+        response = supabase.table("clippings").insert(payload).execute()
+        print(f"  ✅ [تم الحفظ بنجاح]: {clean_title_str[:40]}...")
         return True
     except Exception as e:
-        print(f"❌ خطأ أثناء الحفظ في Supabase: {e}")
+        print(f"  ❌ خطأ إدراج في Supabase (تأكد من أسماء الأعمدة): {e}")
         return False
 
 # ==========================================
-# 5. دوال جلب الأخبار الآلية (Google News RSS)
+# 5. دوال جلب الأخبار RSS
 # ==========================================
 
 def build_google_news_url(query: str) -> str:
-    """إنشاء رابط RSS لـ Google News بناءً على الكلمة المفتاحية"""
     encoded_query = urllib.parse.quote(query)
     return f"https://news.google.com/rss/search?q={encoded_query}&hl=ar&gl=DZ&ceid=DZ:ar"
 
 def scrape_rss_feed(feed_url: str, source_name: str):
-    """
-    جلب القصاصات من خلاصة RSS معينة
-    """
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept-Language': 'ar,en-US;q=0.9,en;q=0.8'
     }
     try:
         response = requests.get(feed_url, headers=headers, timeout=15)
@@ -190,7 +168,7 @@ def scrape_rss_feed(feed_url: str, source_name: str):
             soup = BeautifulSoup(response.content, 'html.parser')
             items = soup.find_all('item')
 
-        print(f"🔍 يتم فحص المصدر: {source_name} ({len(items)} خبر مُكتشف)")
+        print(f"\n🔍 المصدر: {source_name} | عدد العناصر المسترجعة: {len(items)}")
 
         saved_count = 0
         for item in items:
@@ -202,11 +180,10 @@ def scrape_rss_feed(feed_url: str, source_name: str):
             if save_clipping_to_supabase(title, summary, link, source_name, pub_date):
                 saved_count += 1
 
-        if saved_count > 0:
-            print(f"✨ تم إضافة {saved_count} قصاصات جديدة من {source_name}")
+        print(f"📊 النتيجة: تم إضافة {saved_count} قصاصات جديدة من أصل {len(items)}")
 
     except Exception as e:
-        print(f"❌ خطأ أثناء جلب المصدر {source_name}: {e}")
+        print(f"❌ خطأ أثناء الاتصال بالمصدر {source_name}: {e}")
 
 # ==========================================
 # 6. التشغيل الرئيسي
@@ -214,22 +191,17 @@ def scrape_rss_feed(feed_url: str, source_name: str):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("بدء تشغيل scraper.py ورصد الأخبار تلقائياً...")
+    print("بدء تشغيل scraper.py وتتبع عمليات الرصد...")
     print("=" * 60)
 
+    # مصادر استعلامات واسعة النطاق للتحقق من العمل
     SEARCH_QUERIES = [
-        "أبو إسحاق أطفيش",
-        "إبراهيم أطفيش",
-        "جمعية أطفيش",
+        "غرداية",
+        "ولاية غرداية",
         "تراث غرداية",
-        "بني يزقن تراث",
-        "القرارة غرداية",
-        "متليلي غرداية",
-        "بريان غرداية",
-        "زلفانة غرداية"
+        "أطفيش"
     ]
 
-    print("\n--- جلب الأخبار المباشرة عبر Google News ---")
     for q in SEARCH_QUERIES:
         rss_url = build_google_news_url(q)
         scrape_rss_feed(rss_url, f"Google News: {q}")
