@@ -9,11 +9,8 @@ from supabase import create_client, Client
 # ==========================================
 # 1. إعدادات قاعدة البيانات Supabase
 # ==========================================
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("❌ لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في متغيرات البيئة (Environment Variables).")
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://your-supabase-url.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "your-supabase-service-role-key")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -57,7 +54,7 @@ CONTEXT_KEYWORDS = GHARDAIA_MUNICIPALITIES + [
     "قصر العطف", "قصر بونورة", "قصر القرارة", "قصر بريان"
 ]
 
-# كلمات الاستبعاد (تستبعد الخبر فوراً لمنع القصاصات الخاطئة)
+# كلمات الاستبعاد (تستبعد الخبر فوراً لتجنب المقالات غير ذات الصلة)
 EXCLUDE_KEYWORDS = [
     "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", "الزمالك",
     "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع", "شقة للبيع",
@@ -221,7 +218,7 @@ def scrape_rss_feed(feed_url: str, source_name: str):
         print(f"❌ خطأ أثناء جلب المصدر {source_name} ({feed_url}): {e}")
 
 # ==========================================
-# 6. التشغيل الرئيسي
+# 6. التشغيل الرئيسي للاختبار
 # ==========================================
 
 if __name__ == "__main__":
@@ -229,13 +226,22 @@ if __name__ == "__main__":
     print("بدء تشغيل scraper.py بالاعتماد على بلديات ولاية غرداية...")
     print("=" * 60)
 
-    # قائمة بمصادر الأخبار (RSS Feeds) التي سيتم فحصها
-    RSS_SOURCES = [
-        # {"url": "https://example.com/rss", "name": "اسم المصدر"}
-    ]
+    # 1. خبر يحتوي بلدية (القرارة) وتراث:
+    save_clipping_to_supabase(
+        title="ترميم مسجد تاريخي في بلدية القرارة",
+        summary="شهدت بلدية القرارة بولاية غرداية انطلاق أشغال ترميم المعالم التراثية القديمة.",
+        link="https://example.com/news/102",
+        source="جريدة التراث الجزائري"
+    )
 
-    for source in RSS_SOURCES:
-        scrape_rss_feed(source["url"], source["name"])
+    # 2. خبر خاطئ من الرياض (سيتم استبعاده فوراً):
+    save_clipping_to_supabase(
+        title="افتتاح مشاريع جديدة وتطوير منطقة الرياض",
+        summary="تناول اللقاء بحث الجمعيات الخيرية والاهتمام بالتراث العمراني في المنطقة.",
+        link="https://www.alriyadh.com/2208237",
+        source="جريدة الرياض"
+    )
 
-    print("\n=" * 60)
-    print("إنتهاء عملية
+    print("=" * 60)
+    print("إنتهاء عملية الرصد والتصفية.")
+    print("=" * 60)
