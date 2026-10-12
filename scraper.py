@@ -1,100 +1,53 @@
-import os
-import sys
-import feedparser
-import urllib.parse
-from supabase import create_client, Client
+# ==========================================
+# 2. قوائم الفلترة مع تساهل في المطابقة
+# ==========================================
 
-# --- 1. التحقق من مفاتيح الاتصال ---
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+# كلمات مفتاحية خاصة بغرداية/ميزاب — جزائرية بطبيعتها ولا تظهر في أخبار دول أخرى
+SPECIFIC_KEYWORDS = [
+    "غرداية", "أطفيش", "اطفيش", "ميزاب", "بني يزقن",
+    "القرارة", "بريان", "متليلي", "العطف", "بونورة", "زلفانة",
+    "بني يسجن", "مزابي", "ورقلة", "المنيعة", "الجلفة"
+]
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ خطأ: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في Secrets!")
-    sys.exit(1)
+# كلمات عامة تحتاج دليل جزائري مرافق (لأنها قد تظهر في تراث مصر/السعودية/المغرب...)
+GENERIC_KEYWORDS = [
+    "تراث", "مخطوط", "تراثي", "أرشيف"
+]
 
-try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    print("✅ تم الاتصال بـ Supabase بنجاح.")
-except Exception as e:
-    print(f"❌ خطأ أثناء الاتصال بـ Supabase: {e}")
-    sys.exit(1)
+# مؤشرات قوية على أن الخبر يخص الجزائر
+ALGERIA_INDICATORS = [
+    "الجزائر", "الجزائري", "الجزائرية", "جزائري", "جزائرية",
+    "ولاية غرداية", "ولاية", "بلدية", "الدولة الجزائرية",
+    "الجيش الوطني الشعبي", "الدرك الوطني", "الحماية المدنية"
+]
 
-# --- 2. استعلام البحث ---
-QUERY = '(غرداية OR "ولاية غرداية" OR "تراث غرداية" OR "الشيخ أبي إسحاق" OR "جمعية التراث") الجزائر'
-ENCODED_QUERY = urllib.parse.quote(QUERY)
-RSS_URL = f"https://news.google.com/rss/search?q={ENCODED_QUERY}&hl=ar&gl=DZ&ceid=DZ:ar"
+# قائمة بيضاء لنطاقات الصحافة الجزائرية (يُضاف إليها ما يكتشفه المستخدم لاحقاً)
+ALGERIAN_DOMAINS = [
+    "aps.dz", "elkhabar.com", "ennahar.dz", "echoroukonline.com",
+    "elwatan.com", "elwatan-dz.com", "liberte-algerie.com",
+    "lexpressiondz.com", "tsa-algerie.com", "algerie360.com",
+    "ennaharonline.com", "elbilad.net", "ennas.dz", "en-nas.dz",
+    "elhayat.net", "al-fadjr.com", "essahafa.com", "alkhaleej.dz",
+    "dzayerinfo.com", "lequotidienalgerie.com", "radioalgerie.dz",
+    "el-massa.com", "algerie-focus.com", "elain.info",
+    "annasronline.com", "sawt-alahrar.net", "el-mouradia.dz",
+    "el-moudjahid.com", "horizons.dz", "reflexiondz.net",
+    "lapatrienews.dz", "lejeune-independant.net", "reporters.dz",
+    "fibladi.com", "dzairdaily.com", "lagazettedufennec.com",
+    # نطاقات محلية/جهوية (غرداية، ورقلة، الجنوب)
+    "ghardaia.com", "elghardaia.com", "mzab-info.com",
+    "atfich.net", "el-attef.com", "ouargla.org"
+]
 
-def determine_category_and_importance(title, summary):
-    """تحليل نص الخبر لتحديد التصنيف والأهمية تلقائياً"""
-    text = f"{title} {summary}".lower()
-    
-    # تحديد التصنيف
-    category = "أخبار عامة"
-    if any(k in text for k in ["تراث", "مخطوط", "تاريخ", "زايد", "قصور"]):
-        category = "تراث وثقافة"
-    elif any(k in text for k in ["أبي إسحاق", "جمعية", "ملتقى", "محاضرة"]):
-        category = "نشاطات الجمعية"
+# دول ومناطق قد تتسرب من مصادر عربية أخرى (تُستخدم كتحذير فقط عند المطابقة العامة)
+OTHER_ARAB_COUNTRIES = [
+    "مصر", "السعودية", "الإمارات", "الكويت", "قطر", "البحرين",
+    "سلطنة عمان", "الأردن", "لبنان", "سوريا", "العراق",
+    "فلسطين", "تونس", "المغرب", "ليبيا", "موريتانيا",
+    "السودان", "اليمن", "تركيا", "إيران"
+]
 
-    # تحديد الأهمية
-    importance = "عادي"
-    if any(k in text for k in ["أبي إسحاق", "افتتاح", "رسمي", "هام", "اتفاقية"]):
-        importance = "عالي"
-
-    return category, importance
-
-def scrape_and_store():
-    print("🚀 بدء تمشيط الأخبار لجلب القصاصات وتصنيفها...")
-    feed = feedparser.parse(RSS_URL)
-
-    if not feed.entries:
-        print("⚠️ لم يتم العثور على أي مقالات.")
-        return
-
-    print(f"🔎 تم العثور على {len(feed.entries)} خبر. جاري الحفظ والتصنيف في Supabase...")
-
-    new_articles_count = 0
-    skipped_count = 0
-    
-    for entry in feed.entries:
-        title = entry.get("title", "").strip()
-        link = entry.get("link", "").strip()
-        published = entry.get("published", "").strip()
-        
-        source = "صحافة إلكترونية"
-        if "source" in entry and isinstance(entry.source, dict):
-            source = entry.source.get("title", "صحافة إلكترونية")
-
-        summary = entry.get("summary", "")
-        if not summary and "title_detail" in entry:
-            summary = title
-
-        if title and link:
-            # تحليل ذكي للتصنيف والأهمية
-            category, importance = determine_category_and_importance(title, summary)
-
-            data = {
-                "title": title,
-                "source": source,
-                "link": link,
-                "published_date": published,
-                "summary": summary,
-                "category": category,
-                "importance": importance
-            }
-            
-            try:
-                # الحفظ والتحديث تلقائياً دون تكرار
-                response = supabase.table("clippings").upsert(data, on_conflict="link").execute()
-                if response.data:
-                    new_articles_count += 1
-                    print(f"✅ [{category} | أهمية: {importance}] {title[:40]}...")
-            except Exception as e:
-                print(f"⚠️ تعذر إدراج الخبر: {e}")
-                skipped_count += 1
-
-    print("\n" + "="*50)
-    print(f"📊 النتيجة: تم معالجة وتخزين {new_articles_count} مقال بنجاح!")
-    print("="*50)
-
-if __name__ == "__main__":
-    scrape_and_store()
+EXCLUDE_KEYWORDS = [
+    "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", "الزمالك",
+    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع"
+]
