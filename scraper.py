@@ -1,21 +1,22 @@
 import os
 import re
 import sys
+import time
 import requests
 import urllib.parse
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from supabase import create_client, Client
 
-# ==========================================
+# ============================================================
 # 1. الاتصال بـ Supabase والتحقق من البيئة
-# ==========================================
+# ============================================================
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ خطأ حرج: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY في متغيرات البيئة.")
+    print("❌ خطأ حرج: لم يتم العثور على SUPABASE_URL أو SUPABASE_KEY.")
     sys.exit(1)
 
 try:
@@ -25,30 +26,76 @@ except Exception as e:
     print(f"❌ فشل الاتصال بـ Supabase: {e}")
     sys.exit(1)
 
-# ==========================================
-# 2. قوائم الفلترة مع تساهل في المطابقة
-# ==========================================
 
-# كلمات مفتاحية خاصة بغرداية/ميزاب — جزائرية بطبيعتها
-SPECIFIC_KEYWORDS = [
-    "غرداية", "أطفيش", "اطفيش", "ميزاب", "بني يزقن", "بني يسجن",
+# ============================================================
+# 2. أدوات تطبيع النص العربي
+# ============================================================
+_DIACRITICS_RE = re.compile(r'[\u064B-\u065F\u0670\u06D6-\u06ED]')
+_TATWEEL_RE    = re.compile(r'\u0640')
+_ALEF_RE       = re.compile(r'[إأآٱا]')
+_YAA_RE        = re.compile(r'[يى]')
+_TAA_RE        = re.compile(r'ة')
+_WS_RE         = re.compile(r'\s+')
+
+
+def normalize_arabic(text: str) -> str:
+    """تطبيع النص العربي: إزالة التشكيل وتوحيد الحروف المتشابهة."""
+    if not text:
+        return ""
+    text = str(text)
+    text = _DIACRITICS_RE.sub('', text)
+    text = _TATWEEL_RE.sub('', text)
+    text = _ALEF_RE.sub('ا', text)
+    text = _YAA_RE.sub('ي', text)
+    text = _TAA_RE.sub('ه', text)
+    return _WS_RE.sub(' ', text).strip()
+
+
+def clean_text(text: str) -> str:
+    """إزالة وسوم HTML والمسافات الزائدة."""
+    if not text:
+        return ""
+    soup = BeautifulSoup(text, "html.parser")
+    return re.sub(r'\s+', ' ', soup.get_text(separator=' ')).strip()
+
+
+def norm(text: str) -> str:
+    """نص جاهز للمطابقة (منظَّف + مُطبَّع + lowercase)."""
+    return normalize_arabic(clean_text(text)).lower()
+
+
+# ============================================================
+# 3. قوائم الفلترة (تُطبَّع تلقائياً عند التحميل)
+# ============================================================
+
+# --- كلمات محدّدة → قبول فوري ---
+SPECIFIC_KEYWORDS_RAW = [
+    # الجغرافيا: ولاية غرداية ووادي ميزاب
+    "غرداية", "ولاية غرداية", "ميزاب", "وادي ميزاب", "وادي مزاب",
+    "بني يزقن", "بني يسجن", "بني مزاب",
     "القرارة", "بريان", "متليلي", "العطف", "بونورة", "زلفانة",
-    "مزابي", "ورقلة", "المنيعة", "الجلفة"
+    "ضاية بن ضحوة", "حاسي الفحل", "سبسب",
+    # الشيخ إبراهيم أطفيش — كل الصيغ الإملائية والشهرة
+    "أطفيش", "اطفيش", "أطفايش", "اطفايش", "أطفوي", "الأطفيشي",
+    "إبراهيم أطفيش", "أبو إسحاق أطفيش", "أبي إسحاق أطفيش",
+    "الشيخ أطفيش", "إبراهيم بن الحاج موسى",
+    # نسبة إلى المنطقة
+    "مزابي", "ميزابي",
 ]
 
-# كلمات عامة تحتاج دليل جزائري مرافق
-GENERIC_KEYWORDS = [
-    "تراث", "مخطوط", "تراثي", "أرشيف"
+# --- كلمات عامة → تحتاج دليل جزائري مرافق ---
+GENERIC_KEYWORDS_RAW = [
+    "تراث", "مخطوط", "تراثي", "أرشيف", "مخطوطات",
 ]
 
-# مؤشرات قوية على أن الخبر يخص الجزائر
-ALGERIA_INDICATORS = [
+# --- مؤشرات قوية على الجزائر ---
+ALGERIA_INDICATORS_RAW = [
     "الجزائر", "الجزائري", "الجزائرية", "جزائري", "جزائرية",
     "ولاية غرداية", "الدولة الجزائرية",
-    "الجيش الوطني الشعبي", "الدرك الوطني", "الحماية المدنية"
+    "الجيش الوطني الشعبي", "الدرك الوطني", "الحماية المدنية",
 ]
 
-# قائمة بيضاء لنطاقات الصحافة الجزائرية
+# --- نطاقات الصحافة الجزائرية (قائمة بيضاء) ---
 ALGERIAN_DOMAINS = [
     "aps.dz", "elkhabar.com", "ennahar.dz", "echoroukonline.com",
     "elwatan.com", "elwatan-dz.com", "liberte-algerie.com",
@@ -61,49 +108,63 @@ ALGERIAN_DOMAINS = [
     "el-moudjahid.com", "horizons.dz", "reflexiondz.net",
     "lapatrienews.dz", "lejeune-independant.net", "reporters.dz",
     "fibladi.com", "dzairdaily.com", "lagazettedufennec.com",
-    # نطاقات محلية/جهوية (غرداية، ورقلة، الجنوب)
+    # نطاقات جهوية/محلية (غرداية، وادي ميزاب، الجنوب)
     "ghardaia.com", "elghardaia.com", "mzab-info.com",
-    "atfich.net", "el-attef.com", "ouargla.org"
+    "atfich.net", "el-attef.com", "ouargla.org",
 ]
 
-# دول ومناطق عربية (للاستبعاد عند اقترانها بكلمة عامة)
-OTHER_ARAB_COUNTRIES = [
+# --- دول ومناطق عربية أخرى (للاستبعاد عند اقترانها بكلمة عامة) ---
+OTHER_ARAB_COUNTRIES_RAW = [
     "مصر", "السعودية", "الإمارات", "الكويت", "قطر", "البحرين",
     "سلطنة عمان", "الأردن", "لبنان", "سوريا", "العراق",
     "فلسطين", "تونس", "المغرب", "ليبيا", "موريتانيا",
-    "السودان", "اليمن", "تركيا", "إيران"
+    "السودان", "اليمن", "تركيا", "إيران",
 ]
 
-EXCLUDE_KEYWORDS = [
-    "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", "الزمالك",
-    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع"
+# --- كلمات الاستبعاد (رياضة، اقتصاد، إعلانات) ---
+EXCLUDE_KEYWORDS_RAW = [
+    "كرة القدم", "مباراة كرة",
+    "الدوري الإنجليزي", "الدوري الإسباني", "الدوري الإيطالي",
+    "الدوري الجزائري", "الأهلي المصري", "الهلال السعودي",
+    "النصر السعودي", "الزمالك",
+    "بورصة", "تداول الأسهم", "أسهم", "وظائف شاغرة", "عقارات للبيع",
 ]
 
-# ==========================================
-# 3. المعالجة والدوال المساعدة
-# ==========================================
+# --- تطبيع كل القوائم مرة واحدة ---
+SPECIFIC_KEYWORDS    = [normalize_arabic(k).lower() for k in SPECIFIC_KEYWORDS_RAW]
+GENERIC_KEYWORDS     = [normalize_arabic(k).lower() for k in GENERIC_KEYWORDS_RAW]
+ALGERIA_INDICATORS   = [normalize_arabic(k).lower() for k in ALGERIA_INDICATORS_RAW]
+OTHER_ARAB_COUNTRIES = [normalize_arabic(k).lower() for k in OTHER_ARAB_COUNTRIES_RAW]
+EXCLUDE_KEYWORDS     = [normalize_arabic(k).lower() for k in EXCLUDE_KEYWORDS_RAW]
 
-def clean_text(text: str) -> str:
-    if not text:
-        return ""
-    soup = BeautifulSoup(text, "html.parser")
-    clean = soup.get_text(separator=' ')
-    clean = re.sub(r'\s+', ' ', clean)
-    return clean.strip()
+# مفاتيح خاصة بالشيخ أطفيش (لتصنيف الأهمية)
+SCHOLAR_KEYS_NORM = [normalize_arabic(k).lower() for k in
+                     ["أطفيش", "اطفيش", "أطفايش", "اطفايش",
+                      "أطفوي", "الأطفيشي", "أبو إسحاق أطفيش"]]
+
+DANGER_KEYS_NORM = [normalize_arabic(k).lower() for k in
+                    ["تعدي", "سرقة", "هدم", "ضرر", "خطر",
+                     "حريق", "اندثار", "انهيار", "احتجاج", "جريمة"]]
+
+ACTIVITY_KEYS_NORM = [normalize_arabic(k).lower() for k in
+                      ["مؤتمر", "ندوة", "افتتاح", "صدور", "كتاب",
+                       "مخطوط", "محاضرة", "معرض", "مهرجان",
+                       "ترميم", "توثيق"]]
 
 
+# ============================================================
+# 4. دوال مساعدة
+# ============================================================
 def parse_date(date_str: str) -> str:
     if not date_str:
-        return datetime.utcnow().strftime("%Y-%m-%d")
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
     try:
-        dt = parsedate_to_datetime(date_str)
-        return dt.strftime("%Y-%m-%d")
+        return parsedate_to_datetime(date_str).strftime("%Y-%m-%d")
     except Exception:
-        return datetime.utcnow().strftime("%Y-%m-%d")
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
 def extract_domain(url: str) -> str:
-    """استخراج النطاق (domain) من رابط."""
     if not url:
         return ""
     try:
@@ -117,182 +178,213 @@ def extract_domain(url: str) -> str:
 
 
 def is_algerian_domain(source_url: str) -> bool:
-    """التحقق إن كان النطاق ضمن قائمة الصحافة الجزائرية."""
     domain = extract_domain(source_url)
-    if not domain:
-        return False
-    return any(alg in domain for alg in ALGERIAN_DOMAINS)
+    return bool(domain) and any(alg in domain for alg in ALGERIAN_DOMAINS)
 
 
+# ============================================================
+# 5. منطق الفلترة والتصنيف
+# ============================================================
 def is_relevant_article(title: str, summary: str, source_url: str = "") -> bool:
     """
     ثلاث طبقات للقبول:
       1) لا يحتوي على كلمات الاستبعاد.
-      2) يحتوي على كلمة مفتاحية محدّدة (غرداية/ميزاب/...) → قبول مباشر.
-      3) يحتوي على كلمة عامة (تراث) → يُشترط:
-           - ذكر الجزائر صراحة، أو
-           - أن يكون المصدر ضمن القائمة البيضاء الجزائرية.
+      2) يحتوي على كلمة محدّدة (غرداية/ميزاب/أطفيش...) → قبول مباشر.
+      3) يحتوي على كلمة عامة (تراث) → يُشترط ذكر الجزائر صراحة
+         أو أن يكون المصدر ضمن القائمة البيضاء الجزائرية.
     """
-    combined_text = clean_text(f"{title} {summary}").lower()
+    text = norm(f"{title} {summary}")
 
-    # (1) استبعاد الأخبار غير التراثية/الرياضية/الاقتصادية
-    for exc in EXCLUDE_KEYWORDS:
-        if exc in combined_text:
-            return False
-
-    # (2) مطابقة محدّدة → جزائرية بطبيعتها
-    for kw in SPECIFIC_KEYWORDS:
-        if kw.lower() in combined_text:
-            return True
-
-    # (3) مطابقة عامة → تحتاج دليل جزائري
-    has_generic = any(kw.lower() in combined_text for kw in GENERIC_KEYWORDS)
-    if not has_generic:
+    # (1) استبعاد
+    if any(exc in text for exc in EXCLUDE_KEYWORDS):
         return False
 
-    # دليل 3-أ: ذكر الجزائر صراحة
-    has_algeria = any(ind in combined_text for ind in ALGERIA_INDICATORS)
-
-    # دليل 3-ب: المصدر ضمن القائمة البيضاء الجزائرية
-    has_alg_domain = is_algerian_domain(source_url)
-
-    # إذا ذُكرت دولة عربية أخرى بدون الجزائر ولا نطاق جزائري → رفض
-    has_other_country = any(c in combined_text for c in OTHER_ARAB_COUNTRIES)
-    if has_other_country and not has_algeria and not has_alg_domain:
-        return False
-
-    # القبول النهائي
-    if has_algeria or has_alg_domain:
+    # (2) مطابقة محدّدة → قبول مباشر
+    if any(kw in text for kw in SPECIFIC_KEYWORDS):
         return True
 
-    return False
+    # (3) مطابقة عامة → تحتاج دليل جزائري
+    if not any(kw in text for kw in GENERIC_KEYWORDS):
+        return False
+
+    has_algeria    = any(ind in text for ind in ALGERIA_INDICATORS)
+    has_alg_domain = is_algerian_domain(source_url)
+
+    # إذا ذُكرت دولة عربية أخرى بلا الجزائر ولا نطاق جزائري → رفض
+    has_other = any(c in text for c in OTHER_ARAB_COUNTRIES)
+    if has_other and not has_algeria and not has_alg_domain:
+        return False
+
+    return has_algeria or has_alg_domain
 
 
 def determine_importance_and_category(title: str, summary: str):
-    text = clean_text(f"{title} {summary}").lower()
-    if any(k in text for k in ["تعدي", "سرقة", "هدم", "ضرر", "خطر", "حريق", "اندثار"]):
+    text = norm(f"{title} {summary}")
+
+    # أولوية قصوى: أخبار الشيخ أطفيش دائماً "عالي"
+    if any(k in text for k in SCHOLAR_KEYS_NORM):
+        return "عالي", "الشيخ إبراهيم أطفيش"
+
+    if any(k in text for k in DANGER_KEYS_NORM):
         return "أحداث خطيرة", "أحداث خطيرة"
-    elif any(k in text for k in ["مؤتمر", "ندوة", "افتتاح", "صدور", "كتاب", "مخطوط", "محاضرة"]):
+
+    if any(k in text for k in ACTIVITY_KEYS_NORM):
         return "عالي", "نشاطات علمية وتراثية"
+
     return "عادي", "أخبار عامة"
 
-# ==========================================
-# 4. دالة الحفظ
-# ==========================================
 
+# ============================================================
+# 6. حفظ القصاصة في Supabase
+# ============================================================
 def save_clipping_to_supabase(title: str, summary: str, link: str,
                               source: str, pub_date: str = None,
                               source_url: str = "") -> bool:
-    clean_title_str = clean_text(title)
-    clean_summary_str = clean_text(summary)
+    clean_title   = clean_text(title)
+    clean_summary = clean_text(summary)
 
-    if not clean_title_str or not link:
+    if not clean_title or not link:
         return False
 
-    if not is_relevant_article(clean_title_str, clean_summary_str, source_url):
-        print(f"  ⏭️ [مستبعد بالفلترة]: {clean_title_str[:40]}...")
+    if not is_relevant_article(clean_title, clean_summary, source_url):
+        print(f"  ⏭️  [مستبعد]: {clean_title[:50]}...")
         return False
 
+    # --- فحص التكرار (بالرابط أو بالعنوان) ---
     try:
         existing = supabase.table("clippings").select("id").eq("link", link).execute()
-        if existing.data and len(existing.data) > 0:
-            print(f"  ⚠️ [موجود مسبقاً]: {clean_title_str[:40]}...")
+        if existing.data:
+            print(f"  ⚠️  [مكرر بالرابط]: {clean_title[:50]}...")
+            return False
+        existing = supabase.table("clippings").select("id").eq("title", clean_title).execute()
+        if existing.data:
+            print(f"  ⚠️  [مكرر بالعنوان]: {clean_title[:50]}...")
             return False
     except Exception as e:
-        print(f"  ⚠️ خطأ فحص التكرار: {e}")
+        print(f"  ⚠️  خطأ فحص التكرار: {e}")
 
-    importance, category = determine_importance_and_category(clean_title_str, clean_summary_str)
-    formatted_date = parse_date(pub_date)
+    importance, category = determine_importance_and_category(clean_title, clean_summary)
 
     payload = {
-        "title": clean_title_str,
-        "summary": clean_summary_str,
-        "link": link,
-        "source": source,
-        "published_date": formatted_date,
-        "importance": importance,
-        "category": category
+        "title":          clean_title,
+        "summary":        clean_summary,
+        "link":           link,
+        "source":         source,
+        "published_date": parse_date(pub_date),
+        "importance":     importance,
+        "category":       category,
     }
 
     try:
         supabase.table("clippings").insert(payload).execute()
-        print(f"  ✅ [تم الحفظ بنجاح]: {clean_title_str[:40]}...")
+        print(f"  ✅ [محفوظ]: {clean_title[:50]}...")
         return True
     except Exception as e:
         print(f"  ❌ خطأ إدراج في Supabase: {e}")
         return False
 
-# ==========================================
-# 5. دوال جلب الأخبار واختبار الاستجابة
-# ==========================================
 
-def scrape_rss_feed(feed_url: str, source_name: str):
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-    }
-    try:
-        response = requests.get(feed_url, headers=headers, timeout=15)
-        print(f"\n🔍 المصدر: {source_name} | كود الاستجابة: {response.status_code}")
+# ============================================================
+# 7. جلب RSS مع إعادة المحاولة
+# ============================================================
+HEADERS = {
+    'User-Agent': ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                   'AppleWebKit/537.36 (KHTML, like Gecko) '
+                   'Chrome/122.0.0.0 Safari/537.36'),
+    'Accept': 'application/rss+xml, application/xml, text/xml, */*;q=0.8',
+    'Accept-Language': 'ar,fr;q=0.9,en;q=0.8',
+}
 
-        if response.status_code != 200:
-            print(f"❌ فشل جلب الرابط، رمز الحالة: {response.status_code}")
-            return
 
-        soup = BeautifulSoup(response.content, 'xml')
+def fetch_with_retry(url: str, max_retries: int = 3, timeout: int = 20):
+    for attempt in range(max_retries):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=timeout)
+            if r.status_code == 200:
+                return r
+            print(f"  ⚠️  رمز الحالة {r.status_code} (محاولة {attempt + 1})")
+        except requests.RequestException as e:
+            print(f"  ⚠️  فشل الطلب (محاولة {attempt + 1}): {e}")
+        if attempt < max_retries - 1:
+            time.sleep(2 ** attempt)
+    return None
+
+
+def scrape_rss_feed(feed_url: str, source_name: str) -> int:
+    print(f"\n🔍 المصدر: {source_name}")
+    response = fetch_with_retry(feed_url)
+    if response is None:
+        print("  ❌ فشل جلب المصدر بعد كل المحاولات.")
+        return 0
+
+    # ضبط الترميز لتفادي تشويه العربية
+    if not response.encoding or response.encoding.lower() == 'iso-8859-1':
+        response.encoding = response.apparent_encoding or 'utf-8'
+
+    soup = BeautifulSoup(response.content, 'xml')
+    items = soup.find_all('item')
+    if not items:
+        soup = BeautifulSoup(response.content, 'html.parser')
         items = soup.find_all('item')
 
-        if not items:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            items = soup.find_all('item')
+    print(f"  📦 عدد العناصر المكتشفة: {len(items)}")
 
-        print(f"📦 عدد العناصر المكتشفة في XML: {len(items)}")
+    saved = 0
+    for item in items:
+        title    = item.find('title').text       if item.find('title')       else ''
+        link     = item.find('link').text        if item.find('link')        else ''
+        summary  = item.find('description').text if item.find('description') else ''
+        pub_date = item.find('pubDate').text     if item.find('pubDate')     else None
 
-        saved_count = 0
-        for item in items:
-            title = item.find('title').text if item.find('title') else ''
-            link = item.find('link').text if item.find('link') else ''
-            summary = item.find('description').text if item.find('description') else ''
-            pub_date = item.find('pubDate').text if item.find('pubDate') else None
+        # استخراج رابط المصدر الحقيقي من وسم <source url="...">
+        source_tag = item.find('source')
+        source_url = source_tag.get('url', '') if source_tag is not None else ''
 
-            # استخراج رابط المصدر من وسم <source url="...">اسم</source>
-            source_tag = item.find('source')
-            source_url = ""
-            if source_tag is not None:
-                source_url = source_tag.get('url', '') or ""
+        if save_clipping_to_supabase(title, summary, link, source_name,
+                                     pub_date, source_url):
+            saved += 1
 
-            if save_clipping_to_supabase(
-                title, summary, link, source_name, pub_date, source_url
-            ):
-                saved_count += 1
+    print(f"  📊 محفوظ جديد من هذا المصدر: {saved}")
+    return saved
 
-        print(f"📊 نتيجة المصدر: تم حفظ {saved_count} قصاصات جديدة.")
 
-    except Exception as e:
-        print(f"❌ خطأ غير متوقع أثناء جلب {source_name}: {e}")
-
-# ==========================================
-# 6. التشغيل الرئيسي
-# ==========================================
-
+# ============================================================
+# 8. التشغيل الرئيسي
+# ============================================================
 if __name__ == "__main__":
     print("=" * 60)
-    print("بدء تشغيل scraper.py ومراقبة النتائج...")
+    print("بدء تشغيل scraper.py — متابعة ولاية غرداية والشيخ أطفيش")
     print("=" * 60)
 
-    # قائمة استعلامات متدرجة
-    queries = [
+    QUERIES = [
+        # ولاية غرداية
         "غرداية",
         "ولاية غرداية",
         "تراث غرداية",
-        "أطفيش"
+        "وادي ميزاب",
+        "ميزاب",
+        "بني يزقن",
+        "القرارة غرداية",
+        "بريان غرداية",
+        "متليلي",
+        # الشيخ إبراهيم أطفيش
+        "أطفيش",
+        "إبراهيم أطفيش",
+        "الشيخ أطفيش",
+        "أبو إسحاق أطفيش",
+        # التراث المرتبط
+        "مخطوطات ميزاب",
+        "تراث ميزاب",
     ]
 
-    for q in queries:
-        encoded_query = urllib.parse.quote(q)
-        rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=ar&gl=DZ&ceid=DZ:ar"
-        scrape_rss_feed(rss_url, f"Google News: {q}")
+    total_saved = 0
+    for q in QUERIES:
+        encoded = urllib.parse.quote(q)
+        rss_url = (f"https://news.google.com/rss/search?"
+                   f"q={encoded}&hl=ar&gl=DZ&ceid=DZ:ar")
+        total_saved += scrape_rss_feed(rss_url, f"Google News: {q}")
+        time.sleep(1.5)  # احترام حدود الخدمة
 
     print("\n" + "=" * 60)
-    print("إنتهاء عملية التشغيل.")
+    print(f"انتهى التشغيل. إجمالي القصاصات الجديدة: {total_saved}")
     print("=" * 60)
