@@ -32,7 +32,7 @@ except Exception as e:
 
 
 # ============================================================
-# 2. أدوات تطبيع النص العربي
+# 2. أدوات تطبيع النص العربي والغربي
 # ============================================================
 _DIACRITICS_RE = re.compile(r'[\u064B-\u065F\u0670\u06D6-\u06ED]')
 _TATWEEL_RE    = re.compile(r'\u0640')
@@ -62,34 +62,38 @@ def clean_text(text: str) -> str:
 
 
 def norm(text: str) -> str:
-    return normalize_arabic(clean_text(text)).lower()
+    cleaned = clean_text(text).lower()
+    return normalize_arabic(cleaned)
 
 
 # ============================================================
-# 3. قوائم الفلترة
+# 3. قوائم الفلترة (عربي + فرنسي/إنجليزي)
 # ============================================================
 SPECIFIC_KEYWORDS_RAW = [
-    # ولاية غرداية ووادي ميزاب
+    # ولاية غرداية ووادي ميزاب (عربي)
     "غرداية", "ولاية غرداية", "ميزاب", "وادي ميزاب", "وادي مزاب",
     "بني يزقن", "بني يسجن", "بني مزاب",
     "القرارة", "بريان", "متليلي", "العطف", "بونورة", "زلفانة",
-    "ضاية بن ضحوة", "حاسي الفحل", "سبسب",
-    # الشيخ إبراهيم أطفيش
+    "ضاية بن ضحوة", "حاسي الفحل", "سبسب", "المنصورة",
+    # الشيخ إبراهيم أطفيش (عربي)
     "أطفيش", "اطفيش", "أطفايش", "اطفايش", "أطفوي", "الأطفيشي",
     "إبراهيم أطفيش", "أبو إسحاق أطفيش", "أبي إسحاق أطفيش",
     "الشيخ أطفيش", "إبراهيم بن الحاج موسى",
-    # نسبة
     "مزابي", "ميزابي",
+    # الكلمات المفتاحية باللغات الأجنبية (الفرنسية/الإنجليزية)
+    "ghardaia", "ghardaïa", "mzab", "vallée du mzab", "vallee du mzab",
+    "atfich", "atfayech", "ibrahim atfich", "abou issaq", "beni isguen",
+    "el attef", "bounoura", "guerrara", "berriane", "metlili"
 ]
 
 GENERIC_KEYWORDS_RAW = [
-    "تراث", "مخطوط", "تراثي", "أرشيف", "مخطوطات",
+    "تراث", "مخطوط", "تراثي", "أرشيف", "مخطوطات", "قصور", "قصر",
+    "patrimoine", "manuscrit", "histoire", "archival"
 ]
 
 ALGERIA_INDICATORS_RAW = [
     "الجزائر", "الجزائري", "الجزائرية", "جزائري", "جزائرية",
-    "ولاية غرداية", "الدولة الجزائرية",
-    "الجيش الوطني الشعبي", "الدرك الوطني", "الحماية المدنية",
+    "ولاية غرداية", "الدولة الجزائرية", "algerie", "algérie", "algerien", "algerienne"
 ]
 
 ALGERIAN_DOMAINS = [
@@ -106,7 +110,7 @@ ALGERIAN_DOMAINS = [
     "fibladi.com", "dzairdaily.com", "lagazettedufennec.com",
     "elikaaonline.com", "lenational.dz", "alg24.net", "algerie-eco.com",
     "ghardaia.com", "elghardaia.com", "mzab-info.com",
-    "atfich.net", "el-attef.com", "ouargla.org",
+    "atfich.net", "el-attef.com", "ouargla.org", "google.com"
 ]
 
 OTHER_ARAB_COUNTRIES_RAW = [
@@ -117,31 +121,22 @@ OTHER_ARAB_COUNTRIES_RAW = [
 ]
 
 EXCLUDE_KEYWORDS_RAW = [
-    "كرة القدم", "مباراة كرة",
+    "كرة القدم", "مباراة كرة", "football", "match",
     "الدوري الإنجليزي", "الدوري الإسباني", "الدوري الإيطالي",
     "الدوري الجزائري", "الأهلي المصري", "الهلال السعودي",
     "النصر السعودي", "الزمالك",
     "بورصة", "تداول الأسهم", "أسهم", "وظائف شاغرة", "عقارات للبيع",
 ]
 
-SPECIFIC_KEYWORDS    = [normalize_arabic(k).lower() for k in SPECIFIC_KEYWORDS_RAW]
-GENERIC_KEYWORDS     = [normalize_arabic(k).lower() for k in GENERIC_KEYWORDS_RAW]
-ALGERIA_INDICATORS   = [normalize_arabic(k).lower() for k in ALGERIA_INDICATORS_RAW]
-OTHER_ARAB_COUNTRIES = [normalize_arabic(k).lower() for k in OTHER_ARAB_COUNTRIES_RAW]
-EXCLUDE_KEYWORDS     = [normalize_arabic(k).lower() for k in EXCLUDE_KEYWORDS_RAW]
+SPECIFIC_KEYWORDS    = [norm(k) for k in SPECIFIC_KEYWORDS_RAW]
+GENERIC_KEYWORDS     = [norm(k) for k in GENERIC_KEYWORDS_RAW]
+ALGERIA_INDICATORS   = [norm(k) for k in ALGERIA_INDICATORS_RAW]
+OTHER_ARAB_COUNTRIES = [norm(k) for k in OTHER_ARAB_COUNTRIES_RAW]
+EXCLUDE_KEYWORDS     = [norm(k) for k in EXCLUDE_KEYWORDS_RAW]
 
-SCHOLAR_KEYS_NORM = [normalize_arabic(k).lower() for k in
-                     ["أطفيش", "اطفيش", "أطفايش", "اطفايش",
-                      "أطفوي", "الأطفيشي", "أبو إسحاق أطفيش"]]
-
-DANGER_KEYS_NORM = [normalize_arabic(k).lower() for k in
-                    ["تعدي", "سرقة", "هدم", "ضرر", "خطر",
-                     "حريق", "اندثار", "انهيار", "احتجاج", "جريمة"]]
-
-ACTIVITY_KEYS_NORM = [normalize_arabic(k).lower() for k in
-                      ["مؤتمر", "ندوة", "افتتاح", "صدور", "كتاب",
-                       "مخطوط", "محاضرة", "معرض", "مهرجان",
-                       "ترميم", "توثيق"]]
+SCHOLAR_KEYS_NORM = [norm(k) for k in ["أطفيش", "اطفيش", "أطفايش", "اطفايش", "أطفوي", "الأطفيشي", "أبو إسحاق أطفيش", "atfich", "atfayech"]]
+DANGER_KEYS_NORM  = [norm(k) for k in ["تعدي", "سرقة", "هدم", "ضرر", "خطر", "حريق", "اندثار", "انهيار", "احتجاج", "جريمة", "incendie", "accident", "drame"]]
+ACTIVITY_KEYS_NORM= [norm(k) for k in ["مؤتمر", "ندوة", "افتتاح", "صدور", "كتاب", "مخطوط", "محاضرة", "معرض", "مهرجان", "ترميم", "توثيق", "séminaire", "conférence", "exposition"]]
 
 
 # ============================================================
@@ -180,23 +175,26 @@ def is_algerian_domain(source_url: str) -> bool:
 def is_relevant_article(title: str, summary: str, source_url: str = "") -> bool:
     text = norm(f"{title} {summary}")
 
+    # 1. استبعاد الرياضة والأسهم
     if any(exc in text for exc in EXCLUDE_KEYWORDS):
         return False
 
+    # 2. القبول الفوري إذا وُجدت كلمة مفتاحية صريحة لغرداية/أطفيش
     if any(kw in text for kw in SPECIFIC_KEYWORDS):
         return True
 
-    if not any(kw in text for kw in GENERIC_KEYWORDS):
-        return False
+    # 3. الفحص الثانوي للكلمات العامة
+    if any(kw in text for kw in GENERIC_KEYWORDS):
+        has_algeria    = any(ind in text for ind in ALGERIA_INDICATORS)
+        has_alg_domain = is_algerian_domain(source_url)
+        has_other      = any(c in text for c in OTHER_ARAB_COUNTRIES)
 
-    has_algeria    = any(ind in text for ind in ALGERIA_INDICATORS)
-    has_alg_domain = is_algerian_domain(source_url)
+        if has_algeria or has_alg_domain:
+            return True
+        if not has_other:
+            return True
 
-    has_other = any(c in text for c in OTHER_ARAB_COUNTRIES)
-    if has_other and not has_algeria and not has_alg_domain:
-        return False
-
-    return has_algeria or has_alg_domain
+    return False
 
 
 def determine_importance_and_category(title: str, summary: str):
@@ -226,7 +224,7 @@ def save_clipping_to_supabase(title: str, summary: str, link: str,
     if not clean_title or not link:
         return False
 
-    if not is_relevant_article(clean_title, clean_summary, source_url):
+    if not is_relevant_article(clean_title, clean_summary, source_url or link):
         print(f"  ⏭️  [مستبعد]: {clean_title[:50]}...")
         return False
 
@@ -317,10 +315,10 @@ def scrape_rss_feed(feed_url: str, source_name: str) -> int:
 
     saved = 0
     for item in items:
-        title    = item.find('title').text       if item.find('title')       else ''
-        link     = item.find('link').text        if item.find('link')        else ''
+        title    = item.find('title').text        if item.find('title')        else ''
+        link     = item.find('link').text         if item.find('link')         else ''
         summary  = item.find('description').text if item.find('description') else ''
-        pub_date = item.find('pubDate').text     if item.find('pubDate')     else None
+        pub_date = item.find('pubDate').text      if item.find('pubDate')      else None
 
         source_tag = item.find('source')
         source_url = source_tag.get('url', '') if source_tag is not None else ''
@@ -337,25 +335,23 @@ def scrape_rss_feed(feed_url: str, source_name: str) -> int:
 # 8. قوائم المصادر
 # ============================================================
 
-# Google News — باقة الجزائر بالفرنسية (مدعومة رسمياً)
 GOOGLE_NEWS_QUERIES = [
-    "Ghardaia", "Ghardaïa", "Mzab", "Vallee du Mzab",
-    "Atfich", "Atfayech", "Ibrahim Atfich",
-    "غرداية", "وادي ميزاب", "أطفيش",
+    ("Ghardaia", "fr", "DZ"),
+    ("Mzab", "fr", "DZ"),
+    ("Atfich", "fr", "DZ"),
+    ("غرداية", "ar", "DZ"),
+    ("وادي ميزاب", "ar", "DZ"),
+    ("أطفيش", "ar", "DZ"),
 ]
 
-# مصادر RSS جزائرية مباشرة — مرتبة حسب الأفضلية
 ALGERIAN_RSS_FEEDS = {
-    # مصادر مؤكدة العمل بالعربية
-    "الشروق أونلاين":          "https://www.echoroukonline.com/feed/",
+    "الشروق أونلاين":           "https://www.echoroukonline.com/feed/",
     "جريدة اللقاء":            "https://elikaaonline.com/feed/",
-    # مصادر بالفرنسية (تغطي أخبار الجزائر)
     "L'Expression":            "https://lexpressiondz.com/feeds/index.rssi",
     "Radio Algérie":           "http://www.radioalgerie.dz/news/fr/rss.xml",
-    "Algérie Eco":             "https://www.algerie-eco.com/feed/",
-    "Alg24":                   "https://www.alg24.net/feed/",
-    # مصادر إضافية (تعمل أحياناً)
-    "Dzair Daily":             "https://www.dzairdaily.com/feed/",
+    "Algérie Eco":              "https://www.algerie-eco.com/feed/",
+    "Alg24":                    "https://www.alg24.net/feed/",
+    "Dzair Daily":              "https://www.dzairdaily.com/feed/",
     "El Watan":                "https://elwatan-dz.com/feed",
 }
 
@@ -370,13 +366,13 @@ if __name__ == "__main__":
 
     total_saved = 0
 
-    # المصدر 1: Google News (باقة الجزائر بالفرنسية)
-    print("\n📡 [1] Google News — DZ (fr)")
-    for q in GOOGLE_NEWS_QUERIES:
-        encoded = urllib.parse.quote(f"{q} when:30d")
+    # المصدر 1: Google News (عربي وفرننسي)
+    print("\n📡 [1] Google News")
+    for q, lang, country in GOOGLE_NEWS_QUERIES:
+        encoded = urllib.parse.quote(q)
         url = (f"https://news.google.com/rss/search?"
-               f"q={encoded}&hl=fr&gl=DZ&ceid=DZ:fr")
-        total_saved += scrape_rss_feed(url, f"Google News: {q}")
+               f"q={encoded}&hl={lang}&gl={country}&ceid={country}:{lang}")
+        total_saved += scrape_rss_feed(url, f"Google News [{lang.upper()}]: {q}")
         time.sleep(1.5)
 
     # المصدر 2: RSS جزائرية مباشرة
