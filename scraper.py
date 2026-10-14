@@ -108,6 +108,7 @@ ALGERIAN_DOMAINS = [
     "el-moudjahid.com", "horizons.dz", "reflexiondz.net",
     "lapatrienews.dz", "lejeune-independant.net", "reporters.dz",
     "fibladi.com", "dzairdaily.com", "lagazettedufennec.com",
+    "elikaaonline.com", "lenational.dz", "alg24.net",
     # نطاقات جهوية/محلية (غرداية، وادي ميزاب، الجنوب)
     "ghardaia.com", "elghardaia.com", "mzab-info.com",
     "atfich.net", "el-attef.com", "ouargla.org",
@@ -356,34 +357,43 @@ if __name__ == "__main__":
     print("بدء تشغيل scraper.py — متابعة ولاية غرداية والشيخ أطفيش")
     print("=" * 60)
 
-    QUERIES = [
-        # ولاية غرداية
-        "غرداية",
-        "ولاية غرداية",
-        "تراث غرداية",
-        "وادي ميزاب",
-        "ميزاب",
-        "بني يزقن",
-        "القرارة غرداية",
-        "بريان غرداية",
-        "متليلي",
-        # الشيخ إبراهيم أطفيش
-        "أطفيش",
-        "إبراهيم أطفيش",
-        "الشيخ أطفيش",
-        "أبو إسحاق أطفيش",
-        # التراث المرتبط
-        "مخطوطات ميزاب",
-        "تراث ميزاب",
-    ]
-
     total_saved = 0
-    for q in QUERIES:
-        encoded = urllib.parse.quote(q)
-        rss_url = (f"https://news.google.com/rss/search?"
-                   f"q={encoded}&hl=ar&gl=DZ&ceid=DZ:ar")
-        total_saved += scrape_rss_feed(rss_url, f"Google News: {q}")
-        time.sleep(1.5)  # احترام حدود الخدمة
+
+    # ============================================================
+    # المصدر 1: Google News — باقة الجزائر بالفرنسية (مدعومة رسمياً)
+    # ============================================================
+    print("\n📡 [المصدر 1] Google News — باقة الجزائر (fr)")
+    GOOGLE_QUERIES = [
+        "Ghardaia", "Ghardaïa", "Mzab", "Vallee du Mzab",
+        "Atfich", "Atfayech", "Ibrahim Atfich",
+        "غرداية", "وادي ميزاب", "أطفيش",
+    ]
+    for q in GOOGLE_QUERIES:
+        encoded = urllib.parse.quote(f"{q} when:30d")
+        url = (f"https://news.google.com/rss/search?"
+               f"q={encoded}&hl=fr&gl=DZ&ceid=DZ:fr")
+        total_saved += scrape_rss_feed(url, f"Google News: {q}")
+        time.sleep(1.5)
+
+    # ============================================================
+    # المصدر 2: مصادر RSS جزائرية مباشرة
+    # ============================================================
+    print("\n📡 [المصدر 2] مصادر RSS جزائرية مباشرة")
+    ALGERIAN_RSS_FEEDS = {
+        # صحف وطنية عربية
+        "الشروق أونلاين":          "https://www.echoroukonline.com/feed/",
+        "جريدة اللقاء":            "https://elikaaonline.com/feed/",
+        "وكالة الأنباء الجزائرية": "https://www.aps.dz/ar/rss",
+        # صحف وطنية فرنسية (تغطي أخبار الجزائر)
+        "L'Expression":            "https://lexpressiondz.com/feeds/info-en-continu.rssi",
+        "Le National":             "https://lenational.dz/?feed=rss2",
+        "Alg24":                   "https://www.alg24.net/feed/",
+        # إذاعة الجزائر
+        "Radio Algérie":           "http://www.radioalgerie.dz/news/fr/rss.xml",
+    }
+    for name, url in ALGERIAN_RSS_FEEDS.items():
+        total_saved += scrape_rss_feed(url, name)
+        time.sleep(1.5)
 
     print("\n" + "=" * 60)
     print(f"انتهى التشغيل. إجمالي القصاصات الجديدة: {total_saved}")
