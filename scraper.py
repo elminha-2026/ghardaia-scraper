@@ -1,5 +1,5 @@
 """
-scraper.py — جلب القصاصات الصحفية حول ولاية غرداية والشيخ إبراهيم أطفيش
+scraper.py — جلب وتصفية القصاصات الصحفية لولاية غرداية والشيخ إبراهيم أطفيش
 """
 import os
 import re
@@ -20,19 +20,19 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ خطأ: SUPABASE_URL أو SUPABASE_KEY غير موجودين.")
+    print("❌ خطأ: SUPABASE_URL أو SUPABASE_KEY غير موجودين في Secrets.")
     sys.exit(1)
 
 try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-    print("✅ تم الاتصال بـ Supabase.")
+    print("✅ تم الاتصال بـ Supabase بنجاح.")
 except Exception as e:
     print(f"❌ فشل الاتصال بـ Supabase: {e}")
     sys.exit(1)
 
 
 # ============================================================
-# 2. أدوات تطبيع النص
+# 2. أدوات معالجة وتنظيف النصوص
 # ============================================================
 _DIACRITICS_RE = re.compile(r'[\u064B-\u065F\u0670\u06D6-\u06ED]')
 _TATWEEL_RE    = re.compile(r'\u0640')
@@ -58,7 +58,11 @@ def clean_text(text: str) -> str:
     if not text:
         return ""
     soup = BeautifulSoup(text, "html.parser")
-    return re.sub(r'\s+', ' ', soup.get_text(separator=' ')).strip()
+    # حذف وسوم تعريف الكاتب إذا وجدت في الـ RSS
+    for tag in soup.select('.author, .author-bio, header, footer, script, style'):
+        tag.decompose()
+    clean = soup.get_text(separator=' ')
+    return re.sub(r'\s+', ' ', clean).strip()
 
 
 def norm(text: str) -> str:
@@ -67,7 +71,7 @@ def norm(text: str) -> str:
 
 
 # ============================================================
-# 3. الكلمات المفتاحية
+# 3. قوائم الفلترة واستبعاد مزاب المغرب والرياضة
 # ============================================================
 TARGET_KEYWORDS_RAW = [
     # غرداية ومدنها
@@ -75,13 +79,16 @@ TARGET_KEYWORDS_RAW = [
     "متليلي", "العطف", "بونورة", "زلفانة", "سبسب", "المنصورة",
     # أطفيش
     "أطفيش", "اطفيش", "إبراهيم أطفيش", "أبو إسحاق", "أبي إسحاق",
-    # بالفرنسية
+    # باللغات الأجنبية
     "ghardaia", "ghardaïa", "mzab", "atfich", "ibrahim atfich", "guerrara", "berriane"
 ]
 
 EXCLUDE_KEYWORDS_RAW = [
+    # استبعاد أخبار الرياضة والأسهم
     "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", "الزمالك",
-    "بورصة", "تداول الأسهم", "وظائف شاغرة", "عقارات للبيع", "football"
+    "بورصة", "تداول الأسهم", "وظائف شاغرة", "عقارات للبيع", "football",
+    # استبعاد أخبار منطقة مزاب بالمغرب (سطات/الشاوية)
+    "سطات", "الشاوية", "settat", "chaouia"
 ]
 
 TARGET_KEYWORDS  = [norm(k) for k in TARGET_KEYWORDS_RAW]
@@ -89,7 +96,7 @@ EXCLUDE_KEYWORDS = [norm(k) for k in EXCLUDE_KEYWORDS_RAW]
 
 
 # ============================================================
-# 4. دوال مساعدة
+# 4. دوال الفحص والتقييم
 # ============================================================
 def parse_date(date_str: str) -> str:
     if not date_str:
@@ -100,19 +107,19 @@ def parse_date(date_str: str) -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
-def is_relevant_article(title: str, summary: str, query_context: str = "") -> bool:
-    text = norm(f"{title} {summary} {query_context}")
+def is_relevant_article(title: str, summary: str, is_google_source: bool = False) -> bool:
+    text = norm(f"{title} {summary}")
 
-    # 1. استبعاد الرياضة والعقارات
+    # 1. الاستبعاد الصريح (رياضة / مزاب المغرب)
     if any(exc in text for exc in EXCLUDE_KEYWORDS):
         return False
 
-    # 2. القبول الفوري إذا تطابق أي جزء من العنوان أو الاستعلام مع الكلمات المطلوبة
+    # 2. المطابقة المباشرة في العنوان أو الملخص
     if any(kw in text for kw in TARGET_KEYWORDS):
         return True
 
-    # 3. قبول نصوص Google News المباشرة لأنها مجلوبة بطلب خاص للكلمة
-    if query_context and any(kw in norm(query_context) for kw in TARGET_KEYWORDS):
+    # 3. قبول نتائج Google News المباشرة طالما لم يتم استبعادها في الخطوة 1
+    if is_google_source:
         return True
 
     return False
@@ -134,39 +141,39 @@ def determine_importance_and_category(title: str, summary: str):
 
 
 # ============================================================
-# 5. حفظ في Supabase
+# 5. دالة الحفظ في Supabase
 # ============================================================
 def save_clipping_to_supabase(title: str, summary: str, link: str,
                               source: str, pub_date: str = None,
-                              query_context: str = "") -> bool:
-    clean_title   = clean_text(title)
-    clean_summary = clean_text(summary)
+                              is_google_source: bool = False) -> bool:
+    clean_title_str   = clean_text(title)
+    clean_summary_str = clean_text(summary)
 
-    if not clean_title or not link:
+    if not clean_title_str or not link:
         return False
 
-    if not is_relevant_article(clean_title, clean_summary, query_context):
-        print(f"  ⏭️  [مستبعد]: {clean_title[:50]}...")
+    if not is_relevant_article(clean_title_str, clean_summary_str, is_google_source):
+        print(f"  ⏭️  [مستبعد]: {clean_title_str[:50]}...")
         return False
 
-    # فحص التكرار
+    # منع التكرار بناءً على الرابط والعنوان
     try:
         existing = supabase.table("clippings").select("id").eq("link", link).execute()
         if existing.data:
-            print(f"  ⚠️  [مكرر بالرابط]: {clean_title[:50]}...")
+            print(f"  ⚠️  [مكرر بالرابط]: {clean_title_str[:50]}...")
             return False
-        existing = supabase.table("clippings").select("id").eq("title", clean_title).execute()
+        existing = supabase.table("clippings").select("id").eq("title", clean_title_str).execute()
         if existing.data:
-            print(f"  ⚠️  [مكرر بالعنوان]: {clean_title[:50]}...")
+            print(f"  ⚠️  [مكرر بالعنوان]: {clean_title_str[:50]}...")
             return False
     except Exception as e:
         print(f"  ⚠️  خطأ فحص التكرار: {e}")
 
-    importance, category = determine_importance_and_category(clean_title, clean_summary)
+    importance, category = determine_importance_and_category(clean_title_str, clean_summary_str)
 
     payload = {
-        "title":          clean_title,
-        "summary":        clean_summary,
+        "title":          clean_title_str,
+        "summary":        clean_summary_str if clean_summary_str else clean_title_str,
         "link":           link,
         "source":         source,
         "published_date": parse_date(pub_date),
@@ -176,15 +183,15 @@ def save_clipping_to_supabase(title: str, summary: str, link: str,
 
     try:
         supabase.table("clippings").insert(payload).execute()
-        print(f"  ✅ [محفوظ]: {clean_title[:50]}...")
+        print(f"  ✅ [تم الحفظ بنجاح]: {clean_title_str[:50]}...")
         return True
     except Exception as e:
-        print(f"  ❌ خطأ إدراج: {e}")
+        print(f"  ❌ خطأ إدراج في Supabase: {e}")
         return False
 
 
 # ============================================================
-# 6. جلب RSS
+# 6. جلب RSS عبر شبكة الطلبات
 # ============================================================
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -192,12 +199,12 @@ HEADERS = {
 }
 
 
-def scrape_rss_feed(feed_url: str, source_name: str, query_context: str = "") -> int:
+def scrape_rss_feed(feed_url: str, source_name: str, is_google_source: bool = False) -> int:
     print(f"\n🔍 {source_name}")
     try:
         response = requests.get(feed_url, headers=HEADERS, timeout=15)
         if response.status_code != 200:
-            print(f"  ❌ فشل الجلب (رمز الحالة: {response.status_code})")
+            print(f"  ❌ فشل الجلب (كود الحالة: {response.status_code})")
             return 0
     except Exception as e:
         print(f"  ❌ خطأ اتصال: {e}")
@@ -220,10 +227,16 @@ def scrape_rss_feed(feed_url: str, source_name: str, query_context: str = "") ->
         summary  = item.find('description').text if item.find('description') else ''
         pub_date = item.find('pubDate').text      if item.find('pubDate')      else None
 
-        if save_clipping_to_supabase(title, summary, link, source_name, pub_date, query_context):
+        # جلب اسم المصدر الأصلي إذا كان موجهاً عبر Google News
+        actual_source = source_name
+        source_tag = item.find('source')
+        if source_tag and source_tag.text:
+            actual_source = source_tag.text.strip()
+
+        if save_clipping_to_supabase(title, summary, link, actual_source, pub_date, is_google_source):
             saved += 1
 
-    print(f"  📊 تم حفظ: {saved}")
+    print(f"  📊 تم حفظ: {saved} قصاصات جديدة.")
     return saved
 
 
@@ -232,12 +245,11 @@ def scrape_rss_feed(feed_url: str, source_name: str, query_context: str = "") ->
 # ============================================================
 if __name__ == "__main__":
     print("=" * 60)
-    print("بدء التشغيل — غرداية + الشيخ إبراهيم أطفيش")
+    print("بدء تشغيل السكرابر لجلب كافة القصاصات...")
     print("=" * 60)
 
     total_saved = 0
 
-    # استعلامات مباشرة بدون قيود زمنية معقدة
     SEARCH_QUERIES = [
         "غرداية",
         "ولاية غرداية",
@@ -249,11 +261,11 @@ if __name__ == "__main__":
         "Mzab"
     ]
 
-    print("\n📡 [1] Google News RSS")
+    print("\n📡 [1] جلب عبر Google News RSS")
     for q in SEARCH_QUERIES:
         encoded = urllib.parse.quote(q)
         url = f"https://news.google.com/rss/search?q={encoded}&hl=ar&gl=DZ&ceid=DZ:ar"
-        total_saved += scrape_rss_feed(url, f"Google News: {q}", query_context=q)
+        total_saved += scrape_rss_feed(url, f"Google News: {q}", is_google_source=True)
         time.sleep(1)
 
     print("\n📡 [2] مصادر RSS جزائرية مباشرة")
@@ -263,9 +275,9 @@ if __name__ == "__main__":
         "L'Expression": "https://lexpressiondz.com/feeds/index.rssi"
     }
     for name, url in DIRECT_FEEDS.items():
-        total_saved += scrape_rss_feed(url, name)
+        total_saved += scrape_rss_feed(url, name, is_google_source=False)
         time.sleep(1)
 
     print("\n" + "=" * 60)
-    print(f"🎉 انتهى التشغيل بنجاح! إجمالي القصاصات الجديدة الحقيقية: {total_saved}")
+    print(f"🎉 اكتمل الرصد! إجمالي القصاصات المحفوظة: {total_saved}")
     print("=" * 60)
