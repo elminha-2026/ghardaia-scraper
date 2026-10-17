@@ -19,24 +19,27 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ==========================================
-# 2. قواعد الفلترة والتنظيف
+# 2. قواعد الفلترة والتنظيف الصارمة
 # ==========================================
-# كلمات غير مرغوب فيها نهائياً (رياضة، اقتصاد، ترفيه)
+# 1. كلمات مستبعدة نهائياً (رياضة، اقتصاد، دول ومناطق أجنبية)
 EXCLUDE_KEYWORDS = [
     "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", 
-    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع"
-]
-
-# كلمات البحث المحلية (يجب أن يحتوي الخبر على واحدة منها على الأقل)
-LOCAL_KEYWORDS = [
-    "غرداية", "بريان", "بونورة", "المنصورة", 
-    "ميزاب", "بني مزاب", "بني يزقن", "جمعية التراث", "جمعية الشيخ"
-]
-
-# أسماء دول أجنبية (لاستبعاد الأخبار التي تتحدث عنها)
-FOREIGN_COUNTRIES = [
+    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع",
+    # دول ومناطق قد تتشابه مع اسم "مزاب"
+    "المغرب", "زاكورة", "درعة", "الدار البيضاء", "الرباط", "مراكش",
     "مصر", "السعودية", "الإمارات", "الكويت", "قطر", "البحرين", 
-    "عمان", "الأردن", "المغرب", "تونس", "ليبيا", "موريتانيا", "فرنسا"
+    "عمان", "الأردن", "تونس", "ليبيا", "موريتانيا", "فرنسا"
+]
+
+# 2. كلمات محلية قوية (تكفي وحدها لقبول الخبر)
+STRONG_LOCAL_KEYWORDS = [
+    "غرداية", "بريان", "بونورة", "المنصورة", "بني يزقن", "وادي ميزاب", 
+    "بني مزاب", "جمعية الشيخ أبي إسحاق", "جمعية التراث غرداية"
+]
+
+# 3. كلمات محلية ضعيفة (تحتاج تأكيداً بكلمة الجزائر أو غرداية)
+WEAK_LOCAL_KEYWORDS = [
+    "مزاب", "ميزاب"
 ]
 
 def clean_text(text: str) -> str:
@@ -56,37 +59,39 @@ def determine_importance_and_category(title: str, summary: str):
     return "عادي", "أخبار عامة"
 
 # ==========================================
-# 3. دالة الحفظ (مع الفلترة الصارمة)
+# 3. دالة الحفظ (مع الفلترة الذكية)
 # ==========================================
 def save_to_supabase(title, summary, link, source, pub_date):
     title = clean_text(title)
     summary = clean_text(summary)
     combined_text = f"{title} {summary}".lower()
 
-    # 1. استبعاد كلمات الرياضة والاقتصاد
+    # 1. استبعاد الكلمات الرياضية أو الدول/المناطق الأجنبية
     if any(exc in combined_text for exc in EXCLUDE_KEYWORDS):
         return False
 
-    # 2. هل الخبر عن الشيخ أطفيش؟ (هذا الاستثناء مسموح به دائماً)
+    # 2. هل الخبر عن الشيخ أطفيش؟ (استثناء مقبول دائماً)
     is_atfayyish = any(k in combined_text for k in ["أطفيش", "اطفيش", "إبراهيم أطفيش"])
-    
-    # 3. هل الخبر يخص المنطقة؟ (غرداية، بريان، إلخ)
-    is_local = any(k in combined_text for k in LOCAL_KEYWORDS)
+    if is_atfayyish:
+        pass # نقبله مباشرة
 
-    # الشرط الأساسي: يجب أن يكون الخبر عن أطفيش أو عن المنطقة، وإلا نرفضه فوراً
-    if not is_atfayyish and not is_local:
-        # print(f"   🚫 مستبعد (غير مرتبط بالمنطقة): {title[:30]}...")
-        return False
-
-    # 4. الفلترة الجغرافية للأخبار المحلية (إذا لم يكن عن أطفيش)
-    if not is_atfayyish:
-        mentions_foreign = any(country in combined_text for country in FOREIGN_COUNTRIES)
-        mentions_algeria = "الجزائر" in combined_text or "جزائري" in combined_text
-
-        # إذا ذكر دولة أجنبية ولم يذكر الجزائر، نرفضه
-        if mentions_foreign and not mentions_algeria:
-            print(f"   🚫 مستبعد (يخص دولة أخرى): {title[:30]}...")
+    else:
+        # 3. هل يحتوي على كلمات محلية قوية؟ (غرداية، وادي ميزاب...)
+        is_strong_local = any(k in combined_text for k in STRONG_LOCAL_KEYWORDS)
+        
+        # 4. هل يحتوي فقط على كلمات محلية ضعيفة؟ (مزاب فقط)
+        is_weak_local = any(k in combined_text for k in WEAK_LOCAL_KEYWORDS)
+        
+        # إذا لم يكن أطفيش ولا يحتوي على أي كلمة محلية قوية أو ضعيفة، نرفضه
+        if not is_strong_local and not is_weak_local:
             return False
+
+        # إذا كان يعتمد فقط على كلمة "مزاب" الضعيفة، يجب أن يذكر الجزائر أو غرداية
+        if is_weak_local and not is_strong_local:
+            mentions_algeria = "الجزائر" in combined_text or "جزائري" in combined_text
+            if not mentions_algeria:
+                print(f"   🚫 مستبعد (مزاب لكن ليس بالجزائر): {title[:30]}...")
+                return False
 
     # تحديد الأهمية والتصنيف
     importance, category = determine_importance_and_category(title, summary)
@@ -159,7 +164,7 @@ def scrape_google_news(query: str):
 if __name__ == "__main__":
     print("🚀 بدء عملية تمشيط الأرشيف...")
     
-    # الكلمات المفتاحية
+    # تحديث الاستعلامات لضمان جلب أخبار الجزائر فقط
     queries = [
         '"غرداية"',
         '"ولاية غرداية"',
@@ -167,9 +172,10 @@ if __name__ == "__main__":
         '"بني مزاب"',
         '"أطفيش"',
         '"جمعية التراث" غرداية',
-        '"بريان" الجزائر',
-        '"بونورة" الجزائر',
-        '"المنصورة" غرداية' 
+        '"بريان" غرداية',
+        '"بونورة" غرداية',
+        '"المنصورة" غرداية',
+        '"ميزاب" الجزائر' # لضمان جلب ميزاب الجزائرية
     ]
     
     total_added = 0
@@ -183,7 +189,7 @@ if __name__ == "__main__":
             added = scrape_google_news(search_query)
             total_added += added
             
-            # 🔴 الانتظار 3 ثوانٍ بين كل طلب لتجنب حظر جوجل (Rate Limiting)
+            # الانتظار 3 ثوانٍ لتجنب حظر جوجل
             time.sleep(3)
             
     print("\n" + "="*50)
