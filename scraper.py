@@ -18,25 +18,25 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ==========================================
-# 2. الكلمات المفتاحية والفلترة
+# 2. قواعد الفلترة والتنظيف
 # ==========================================
 EXCLUDE_KEYWORDS = [
     "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", 
-    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات للبيع"
+    "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات"
 ]
 
 def clean_text(text: str) -> str:
     """تنظيف النص من وسوم HTML والمسافات الزائدة"""
     if not text:
         return ""
-    # إزالة أي وسوم HTML (مثل <a href...>)
+    # إزالة وسوم HTML مثل <a href...>
     text = re.sub(r'<[^>]+>', '', text)
     # إزالة المسافات المتكررة
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
 def determine_importance_and_category(title: str, summary: str):
-    """تحديد الأهمية والتصنيف تلقائياً"""
+    """تحديد الأهمية والتصنيف تلقائياً بناءً على الكلمات المفتاحية"""
     text = f"{title} {summary}".lower()
     
     if any(k in text for k in ["تعدي", "سرقة", "هدم", "ضرر", "خطر", "حريق", "اندثار"]):
@@ -50,16 +50,15 @@ def determine_importance_and_category(title: str, summary: str):
 # 3. دالة الحفظ في قاعدة البيانات
 # ==========================================
 def save_to_supabase(title, summary, link, source, pub_date):
-    # تنظيف النصوص
     title = clean_text(title)
     summary = clean_text(summary)
+    combined_text = f"{title} {summary}".lower()
 
     # استبعاد الأخبار غير المرغوب فيها
-    combined_text = f"{title} {summary}".lower()
     if any(exc in combined_text for exc in EXCLUDE_KEYWORDS):
         return False
 
-    # تجهيز البيانات
+    # تحديد الأهمية والتصنيف
     importance, category = determine_importance_and_category(title, summary)
     
     payload = {
@@ -67,54 +66,46 @@ def save_to_supabase(title, summary, link, source, pub_date):
         "summary": summary,
         "link": link,
         "source": source,
-        "published_date": pub_date, # بصيغة ISO
+        "published_date": pub_date,
         "importance": importance,
         "category": category
     }
 
     try:
-        # استخدام upsert لتحديث الخبر إذا كان الرابط موجوداً، أو إضافته إذا كان جديداً
-        response = supabase.table("clippings").upsert(payload, on_conflict="link").execute()
-        # التحقق مما إذا كان السجل جديداً حقاً (Supabase يعيد البيانات في كل مرة)
-        # للتبسيط، سنعتمد على طباعة النجاح
-        print(f"✅ تم المعالجة: [{category}] {title[:40]}...")
+        # استخدام upsert مع on_conflict="link" يمنع التكرار ويحدث الخبر إذا وجد
+        supabase.table("clippings").upsert(payload, on_conflict="link").execute()
+        print(f"   ✅ تم الحفظ: {title[:40]}...")
         return True
     except Exception as e:
-        print(f"❌ خطأ أثناء الحفظ: {e}")
+        print(f"   ❌ خطأ أثناء الحفظ: {e}")
         return False
 
 # ==========================================
-# 4. دالة الكشط من Google News
+# 4. دالة الكشط لجوجل نيوز
 # ==========================================
 def scrape_google_news(query: str):
     encoded_query = urllib.parse.quote(query)
-    # البحث في النسخة الجزائرية من جوجل نيوز
     url = f"https://news.google.com/rss/search?q={encoded_query}&hl=ar&gl=DZ&ceid=DZ:ar"
     
-    print(f"\n📡 جاري جلب الأخبار لـ: [{query}]...")
-    
     try:
-        # استخدام feedparser بدلاً من BeautifulSoup لسهولة قراءة RSS
+        # استخدام feedparser لقراءة الـ RSS بذكاء
         feed = feedparser.parse(url)
         
         if not feed.entries:
-            print("   ⚠️ لم يتم العثور على أخبار لهذا الاستعلام.")
-            return
+            return 0
 
-        print(f"   🔎 تم العثور على {len(feed.entries)} خبر.")
         added_count = 0
-        
         for entry in feed.entries:
             title = entry.get("title", "")
             link = entry.get("link", "")
             summary = entry.get("summary", "")
             
-            # استخراج اسم المصدر
+            # استخراج المصدر
             source = "صحافة إلكترونية"
             if "source" in entry and isinstance(entry.source, dict):
                 source = entry.source.get("title", "صحافة إلكترونية")
 
-            # تحويل التاريخ إلى صيغة ISO التي تفهمها قاعدة البيانات والواجهة
+            # تحويل التاريخ إلى صيغة ISO
             pub_date = datetime.utcnow().isoformat() + "Z"
             if "published_parsed" in entry:
                 try:
@@ -122,36 +113,44 @@ def scrape_google_news(query: str):
                 except Exception:
                     pass
 
-            # الحفظ
             if save_to_supabase(title, summary, link, source, pub_date):
                 added_count += 1
                 
+        print(f"      🔎 {len(feed.entries)} خبر متاح، تمت معالجة {added_count} خبر.")
+        return added_count
+                
     except Exception as e:
-        print(f"❌ خطأ أثناء جلب المصدر: {e}")
+        print(f"      ❌ خطأ أثناء الجلب: {e}")
+        return 0
 
 # ==========================================
-# 5. نقطة انطلاق التنفيذ
+# 5. نقطة انطلاق التنفيذ (البحث في الأرشيف سنة بسنة)
 # ==========================================
 if __name__ == "__main__":
-    print("🚀 بدء عملية تمشيط الأخبار الشاملة...")
+    print("🚀 بدء عملية تمشيط الأرشيف...")
     
-    # قائمة استعلامات بحث واسعة جداً لتجاوز حد الـ 100 خبر لكل استعلام
-    SEARCH_QUERIES = [
+    # الكلمات المفتاحية
+    queries = [
         '"غرداية"',
         '"ولاية غرداية"',
         '"وادي ميزاب"',
         '"بني مزاب"',
-        '"بني يزقن"',
-        '"الشيخ أبي إسحاق"',
-        '"إبراهيم أطفيش"',
-        '"جمعية التراث" غرداية',
-        '"تراث غرداية"',
-        '"قصور غرداية"'
+        '"أطفيش"',
+        '"جمعية التراث"'
     ]
     
-    for q in SEARCH_QUERIES:
-        scrape_google_news(q)
+    total_added = 0
+    
+    # البحث من سنة 2010 إلى 2026 لتجاوز حد الـ 100 خبر
+    for year in range(2010, 2027):
+        print(f"\n📅 --- جاري البحث في سنة {year} ---")
         
+        for q in queries:
+            # البحث عن الأخبار التي نُشرت في هذه السنة فقط
+            search_query = f'{q} after:{year}-01-01 before:{year}-12-31'
+            added = scrape_google_news(search_query)
+            total_added += added
+            
     print("\n" + "="*50)
-    print("🎉 انتهت العملية بنجاح! اذهب إلى Supabase أو الواجهة لترى النتائج.")
+    print(f"🎉 انتهت العملية! تمت معالجة {total_added} قصاصة جديدة.")
     print("="*50)
