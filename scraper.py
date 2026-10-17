@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import urllib.parse
 import feedparser
 from datetime import datetime
@@ -20,7 +21,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ==========================================
 # 2. قواعد الفلترة والتنظيف
 # ==========================================
-# كلمات مستبعدة (رياضة، اقتصاد، أو دول أخرى قد تتشابه أسماؤها مع مدننا)
 EXCLUDE_KEYWORDS = [
     "كرة القدم", "الدوري", "مباراة", "الأهلي", "الهلال", "النصر", 
     "سهم", "أسهم", "بورصة", "تداول", "وظائف", "عقارات",
@@ -29,48 +29,38 @@ EXCLUDE_KEYWORDS = [
 ]
 
 def clean_text(text: str) -> str:
-    """تنظيف النص من وسوم HTML والمسافات الزائدة"""
-    if not text:
-        return ""
-    text = re.sub(r'<[^>]+>', '', text) # إزالة HTML
-    text = re.sub(r'\s+', ' ', text)    # إزالة المسافات الزائدة
+    if not text: return ""
+    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
 def determine_importance_and_category(title: str, summary: str):
-    """تحديد الأهمية والتصنيف تلقائياً بناءً على الكلمات المفتاحية"""
     text = f"{title} {summary}".lower()
-    
     if any(k in text for k in ["تعدي", "سرقة", "هدم", "ضرر", "خطر", "حريق", "اندثار"]):
         return "عالي", "أحداث خطيرة"
     elif any(k in text for k in ["مؤتمر", "ندوة", "افتتاح", "صدور", "كتاب", "مخطوط", "تراث"]):
         return "عالي", "نشاطات علمية وتراثية"
-    
     return "عادي", "أخبار عامة"
 
 # ==========================================
-# 3. دالة الحفظ في قاعدة البيانات (مع الفلترة الجغرافية)
+# 3. دالة الحفظ
 # ==========================================
 def save_to_supabase(title, summary, link, source, pub_date):
     title = clean_text(title)
     summary = clean_text(summary)
     combined_text = f"{title} {summary}".lower()
 
-    # 1. استبعاد الأخبار الرياضية والاقتصادية والدولية
     if any(exc in combined_text for exc in EXCLUDE_KEYWORDS):
         return False
 
-    # 2. الفلترة الجغرافية الصارمة:
-    # إذا ذكر الخبر دولة أخرى، يجب أن يذكر الجزائر أيضاً، وإلا نستبعده
     mentions_foreign = any(country in combined_text for country in [
         "مصر", "السعودية", "الإمارات", "الكويت", "قطر", "البحرين", "عمان", "الأردن", "المغرب", "تونس", "ليبيا"
     ])
     mentions_algeria = "الجزائر" in combined_text or "جزائري" in combined_text
 
     if mentions_foreign and not mentions_algeria:
-        print(f"   🚫 مستبعد (يخص دولة أخرى): {title[:40]}...")
         return False
 
-    # تحديد الأهمية والتصنيف
     importance, category = determine_importance_and_category(title, summary)
     
     payload = {
@@ -84,26 +74,31 @@ def save_to_supabase(title, summary, link, source, pub_date):
     }
 
     try:
-        # upsert يمنع التكرار ويحدث الخبر إذا وجد
+        # إذا لم يكن عمود link فريداً في Supabase، قد يفشل هذا السطر
         supabase.table("clippings").upsert(payload, on_conflict="link").execute()
         print(f"   ✅ تم الحفظ: {title[:40]}...")
         return True
     except Exception as e:
+        print(f"   ❌ خطأ في Supabase: {e}")
         return False
 
 # ==========================================
-# 4. دالة الكشط لجوجل نيوز
+# 4. دالة الكشط
 # ==========================================
 def scrape_google_news(query: str):
     encoded_query = urllib.parse.quote(query)
-    # إضافة gl=DZ لضمان تفضيل المصادر الجزائرية
     url = f"https://news.google.com/rss/search?q={encoded_query}&hl=ar&gl=DZ&ceid=DZ:ar"
     
     try:
         feed = feedparser.parse(url)
+        
+        # إذا كانت النتائج 0، نطبع رسالة تنبيه لتشخيص المشكلة
         if not feed.entries:
+            print(f"   ⚠️ جوجل أعاد 0 نتائج للبحث: {query}")
             return 0
 
+        print(f"   📥 جوجل أعاد {len(feed.entries)} خبر للبحث: {query}")
+        
         added_count = 0
         for entry in feed.entries:
             title = entry.get("title", "")
@@ -124,21 +119,18 @@ def scrape_google_news(query: str):
             if save_to_supabase(title, summary, link, source, pub_date):
                 added_count += 1
                 
-        print(f"      🔎 {len(feed.entries)} خبر متاح، تمت معالجة {added_count} خبر.")
         return added_count
                 
     except Exception as e:
-        print(f"      ❌ خطأ أثناء الجلب: {e}")
+        print(f"   ❌ خطأ أثناء الجلب: {e}")
         return 0
 
 # ==========================================
-# 5. نقطة انطلاق التنفيذ 
+# 5. التنفيذ
 # ==========================================
 if __name__ == "__main__":
     print("🚀 بدء عملية تمشيط الأرشيف...")
     
-    # الكلمات المفتاحية المحدثة (غرداية، بريان، بونورة، المنصورة...)
-    # تم ربط الكلمات بكلمة "الجزائر" أو "غرداية" لضمان الدقة
     queries = [
         '"غرداية" الجزائر',
         '"ولاية غرداية"',
@@ -153,15 +145,16 @@ if __name__ == "__main__":
     
     total_added = 0
     
-    # البحث في الأرشيف من 2010 إلى 2026
     for year in range(2010, 2027):
         print(f"\n📅 --- جاري البحث في سنة {year} ---")
         
         for q in queries:
-            # دمج الكلمة مع التاريخ لتجاوز حد الـ 100 خبر
             search_query = f'{q} after:{year}-01-01 before:{year}-12-31'
             added = scrape_google_news(search_query)
             total_added += added
+            
+            # 🔴 هذا السطر مهم جداً: الانتظار ثانيتين بين كل طلب وطلب لتجنب حظر جوجل
+            time.sleep(2)
             
     print("\n" + "="*50)
     print(f"🎉 انتهت العملية! تمت معالجة {total_added} قصاصة جديدة.")
